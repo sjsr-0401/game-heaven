@@ -133,9 +133,13 @@ export class StarwoodSession implements ModeSession {
     const boss = this.state.wave % 5 === 0 && this.state.spawned === 0;
     const hp = Math.round((boss ? 2100 : 100) * 1.38 ** (this.state.wave - 1));
     for (const player of this.active()) {
-      this.state.enemies.push({ id: this.nextId++, ownerId: player.id, progress: 0, hp, maxHp: hp,
-        speed: boss ? 42 : 77 + this.state.wave * 3, kind: boss ? 'boss' : this.state.wave % 2 === 0 ? 'brute' : 'raider', slowUntil: 0 });
-      if (boss) this.state.bossDeadlines[player.id] = this.state.time + 34;
+      const enemy: Enemy = { id: this.nextId++, ownerId: player.id, progress: 0, hp, maxHp: hp,
+        speed: boss ? 42 : 77 + this.state.wave * 3, kind: boss ? 'boss' : this.state.wave % 2 === 0 ? 'brute' : 'raider', slowUntil: 0 };
+      this.state.enemies.push(enemy);
+      if (boss) {
+        this.state.bossDeadlines[player.id] = this.state.time + 34;
+        this.event({ type: 'wave', ownerId: player.id, x: 492, y: 354, targetId: enemy.id, text: '철갑 사령관 출현' });
+      }
     }
     this.state.spawned++;
   }

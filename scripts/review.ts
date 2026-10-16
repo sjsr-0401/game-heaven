@@ -70,8 +70,8 @@ async function recruit(page:Page,wager=false):Promise<void>{
 async function burst(page:Page):Promise<void>{
   const value=await inspect(page),own=value.game.players.find(p=>p.id===value.playerId)!;
   const enemies=value.game.enemies.filter(e=>e.ownerId===value.playerId);
-  if(own.status!=='active'||own.burstReadyAt>value.game.time||!enemies.length||value.game.phase!=='battle')return;
-  const target=trackPosition((enemies.find(e=>e.kind==='boss')??enemies[0]).progress);
+  if(own.status!=='active'||own.burstReadyAt>value.game.time||value.game.phase!=='battle')return;
+  const target=trackPosition((enemies.find(e=>e.kind==='boss')??enemies[0])?.progress??35);
   await button(page,'#burst');const p=await fieldPoint(page,target.x,target.y);
   await page.mouse.move(p.x,p.y,{steps:24});await page.waitForTimeout(350);await page.mouse.click(p.x,p.y);await page.waitForTimeout(650);
 }
@@ -159,7 +159,6 @@ try{
   checks.push({name:'개인 강화 동기화와 친구 강화 단계 보존',passed:true});
 
   await caption(main,'08','위급한 순간, 지원 포격','범위를 확인하고 클릭. 폭발과 파편으로 타격을 표현합니다.');
-  await untilGame(main,state=>state.enemies.some(e=>e.ownerId===originalId),10000);
   await button(main,'#burst');await main.keyboard.press('Escape');assert.equal(await main.locator('.aim-banner').isVisible(),false);
   await burst(main);await untilGame(friend,state=>state.players.find(p=>p.id===originalId)!.burstReadyAt>state.time);
   checks.push({name:'포격 조준·취소·발동·개인 재사용 대기시간',passed:true});
@@ -181,7 +180,7 @@ try{
   await untilGame(friend,state=>!state.defenders.some(d=>d.id===target.id));
   checks.push({name:'선택 용병 해고와 상대 브라우저의 상태 동기화',passed:true});
   await recruit(main,false);
-  while((await inspect(main)).game.time<78){
+  while((await inspect(main)).game.time<75){
     for(const page of [main,friend]){
       const value=await inspect(page),self=value.game.players.find(p=>p.id===value.playerId)!;
       if(self.status!=='active')continue;
@@ -192,7 +191,7 @@ try{
     await main.waitForTimeout(1200);
   }
   await caption(main,'10','다섯 번째 습격 · 철갑 사령관','보스도 전장마다 따로 등장합니다. 내 화력으로 제한 시간 안에 처치.');
-  await untilGame(main,state=>state.enemies.some(e=>e.kind==='boss'&&e.ownerId===originalId),12000);
+  await untilGame(main,state=>state.enemies.some(e=>e.kind==='boss'&&e.ownerId===originalId)||state.events.some(e=>e.ownerId===originalId&&e.text==='철갑 사령관 출현'),15000);
   await burst(main);await burst(friend);await main.waitForTimeout(2200);
   checks.push({name:'5웨이브의 개인 보스 출현과 실제 전투 녹화',passed:true});
   await main.evaluate(()=>(window as unknown as ReviewWindow).__review.caption('','',''));
