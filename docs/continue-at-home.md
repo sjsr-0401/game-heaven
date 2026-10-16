@@ -66,7 +66,7 @@ HTML은 게임 서버 없이 재생합니다. 처음에는 음소거이며, 소�
 
 ## 이번 작업의 마지막 확인
 
-검증 소스는 [`3726703`](https://github.com/sjsr-0401/game-heaven/commit/372670343871f3404ef4cb82a706b6abfd5651e6), [실행 기록](https://github.com/sjsr-0401/game-heaven/actions/runs/38872731762)입니다. 이후 main에는 문서와 캡처만 갱신했습니다.
+검증 소스는 [`3726703`](https://github.com/sjsr-0401/game-heaven/commit/372670343871f3404ef4cb82a706b6abfd5651e6), [실행 기록](https://github.com/sjsr-0401/game-heaven/actions/runs/38872731762)입니다. 이 영상 이후 main에는 문서·캡처와 종료 직후 도착하는 불필요한 명령 거절 알림을 숨기는 작은 UI 수정을 반영했습니다. 이 UI 수정은 영상 검증 커밋과 구분합니다.
 
 - TypeScript 검사·프로덕션 빌드·49개 테스트 통과.
 - 31개 브라우저 검사: 화면 기준 W/A/D 방향, 2인 완주, 포식자 처치, 4인 동시 조작, 다섯 번째 참가자 차단, 재접속, 효과음 로딩·녹음·영상 디코딩, 단일 HTML 재생·탐색, 같은 원정의 고화질 캡처.

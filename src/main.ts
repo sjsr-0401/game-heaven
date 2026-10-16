@@ -68,7 +68,8 @@ net.addEventListener('message',event=>{
   if(message.type==='state'){room=message.room;render();}
   if(message.type==='left'){room=null;playerId='';render();}
   if(message.type==='error')notice(message.message);
-  if(message.type==='ack'&&!message.ok&&message.error)notice(message.error);
+  // A command sent before the finish may be rejected before the final snapshot arrives.
+  if(message.type==='ack'&&!message.ok&&message.error&&room?.phase==='playing'&&message.error!=='진행 중인 게임이 없어요.')notice(message.error);
 });
 net.addEventListener('connection',event=>{
   const connected=(event as CustomEvent<{connected:boolean}>).detail.connected;
