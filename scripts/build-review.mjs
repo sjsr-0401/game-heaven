@@ -24,9 +24,9 @@ const seconds = metadata.summary?.seconds ?? 0;
 const won = metadata.fullRun && metadata.summary?.phase === 'won';
 const html = template.replaceAll('__FONT__','data:font/ttf;base64,'+font.toString('base64')).replaceAll('__FONT_LICENSE__',escape(fontLicense))
   .replaceAll('__STATUS__',won?'2인 탈출 성공':'실행 검토본')
-  .replaceAll('__RUN_DESCRIPTION__',won?'2인 원정의 시작부터 보스 처치·탈출, 그리고 4인 동시 플레이를 녹화했습니다.':'실제 서버와 브라우저로 조작한 2인·4인 플레이 장면입니다.')
+  .replaceAll('__RUN_DESCRIPTION__',won?'2인 원정의 시작부터 포식자 처치·탈출까지, 이어서 4인 플레이를 볼 수 있습니다.':'실제 서버와 브라우저로 조작한 2인·4인 플레이 장면입니다.')
   .replaceAll('__MATCH_STATS__','검토한 원정 '+Math.floor(seconds/60)+'분 '+Math.floor(seconds%60)+'초 · '+Math.round(metadata.summary?.distance ?? 0)+'m 주행')
-  .replaceAll('__RECORDING_NOTE__','클라우드 녹화 · '+quality+' · 전장 평균 약 '+(recorded?.fps ?? '?')+'fps · 속도 1배')
+  .replaceAll('__RECORDING_NOTE__','클라우드 녹화 · '+quality+' · 2인 '+(recorded?.fps ?? '?')+' / 4인 '+(metadata.metrics?.fps ?? '?')+'fps · 속도 1배')
   .replaceAll('__VIDEO__', 'data:video/mp4;base64,' + mp4.toString('base64'))
   .replaceAll('__POSTER__', 'data:image/png;base64,' + poster.toString('base64'))
   .replaceAll('__CHAPTERS__', chapters).replaceAll('__CHECKS__', checks)

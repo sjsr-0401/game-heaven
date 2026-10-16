@@ -1,0 +1,38 @@
+name: Cloud network regression
+on:
+  push:
+    branches: [main]
+    paths: ['scripts/network-review.ts', '.github/workflows/network-review.yml', 'src/core/transport.ts', 'server/rooms.ts']
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  network:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - run: npx playwright install --with-deps chromium
+      - run: sudo apt-get install -y fonts-noto-cjk
+      - name: Exercise delayed messages and a real reconnect
+        run: |
+          npm start > /tmp/houseflight-network-server.log 2>&1 &
+          SERVER_PID=$!
+          trap 'kill "$SERVER_PID" 2>/dev/null || true' EXIT
+          for attempt in $(seq 1 30); do
+            if curl --fail --silent http://127.0.0.1:3000/health > /dev/null; then break; fi
+            sleep 1
+          done
+          npx tsx scripts/network-review.ts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: houseflight-network
+          path: artifacts/network
+          retention-days: 30

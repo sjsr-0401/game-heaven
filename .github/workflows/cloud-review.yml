@@ -3,7 +3,7 @@ name: Cloud review
 on:
   push:
     branches: [main]
-    paths-ignore: ['scripts/vendor-art.mjs', '.github/workflows/vendor-art.yml']
+    paths-ignore: ['scripts/vendor-art.mjs', '.github/workflows/vendor-art.yml', 'scripts/profile-render.ts', '.github/workflows/profile-render.yml', 'scripts/network-review.ts', '.github/workflows/network-review.yml', 'docs/**', 'README.md', 'AGENTS.md']
   pull_request:
     branches: [main]
   workflow_dispatch:

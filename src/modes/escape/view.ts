@@ -102,7 +102,7 @@ export class EscapeView implements ClientMode {
     const boss=s.enemies.find(e=>e.kind==='devourer'),bossHud=root.querySelector<HTMLElement>('.boss-hud')!;bossHud.hidden=!boss;
     if(boss){text('#boss-percent',Math.ceil(boss.hp/boss.maxHp*100)+'%');(root.querySelector('#boss-bar') as HTMLElement).style.width=(boss.hp/boss.maxHp*100)+'%';text('#boss-hint',boss.exposedUntil>s.clock?'흡입구가 열렸다! 화약통을 던지세요':'붉은 경고를 피하고, 물건을 모으세요');}
     const blocked=!s.gate.open&&Math.abs(s.house.z-(s.gate.z-10))<1;
-    text('#objective',s.phase==='camp'?'정비 시간':boss?'고철 포식자를 멈추세요':blocked?'검문소를 뚫으세요':s.stage<3?'검문소까지 '+Math.max(0,Math.ceil(s.gate.z-s.house.z))+'m':'방벽까지 '+Math.max(0,Math.ceil(140-s.house.z))+'m');
+    text('#objective',s.phase==='camp'?'정비 시간':boss?'포식자를 막으세요':blocked?'검문소를 뚫으세요':s.stage<3?'검문소까지 '+Math.max(0,Math.ceil(s.gate.z-s.house.z))+'m':'방벽까지 '+Math.max(0,Math.ceil(140-s.house.z))+'m');
     text('#sub-objective',s.phase==='camp'?'공용 부품으로 개조하고 다음 길을 고르세요.':blocked?'갈고리로 뜯거나, 화약통을 던지세요.':s.house.hp/s.house.maxHp<.35?'내구도가 낮아요! 수리 가방을 집으로 가져오세요.':'물건을 회수하고 뒤처진 동료를 구하세요.');
     const crew=root.querySelector<HTMLElement>('.crew-hud')!;
     if(crew.children.length!==s.crew.length)crew.innerHTML=s.crew.map(c=>'<div class="crew-chip" data-crew="'+escape(c.id)+'" style="--crew:'+c.color+'"><i>'+crewPortrait(c.color)+'</i><div><b>'+escape(c.name)+(c.id===p.id?' <small>나</small>':'')+'</b><span><em></em></span></div><small class="crew-state"></small></div>').join('');
