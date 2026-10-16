@@ -67,13 +67,21 @@ async function untilGame(page: Page, predicate: (game: DefenseState) => boolean,
 async function own(page:Page){
   const value=await inspect(page);return{...value,self:value.game.players.find(p=>p.id===value.playerId)!,army:value.game.defenders.filter(d=>d.ownerId===value.playerId)};
 }
-async function quickButton(page:Page,selector:string):Promise<void>{
-  const locator=page.locator(selector);if(await locator.isEnabled())await locator.click();await page.waitForTimeout(100);
+async function quickButton(page:Page,selector:string):Promise<boolean>{
+  const locator=page.locator(selector);
+  if(!await locator.isEnabled())return false;
+  try{await locator.click({timeout:1000});}
+  catch(error){
+    const value=await own(page);
+    if(value.self.status!=='active'||value.room!.phase==='finished')return false;
+    throw error;
+  }
+  await page.waitForTimeout(100);return true;
 }
 async function recruit(page:Page,wager=false):Promise<void>{
   const value=await own(page),cost=wager?(value.self.relics.includes('coin')?90:120):40;
   if(value.self.status!=='active'||(wager&&value.self.contracts>0?false:value.self.gold<cost)||value.army.length>=16)return;
-  await button(page,wager?'#wager':'#summon');
+  await quickButton(page,wager?'#wager':'#summon');
 }
 async function cast(page:Page):Promise<void>{
   const value=await own(page),p=value.self;if(p.status!=='active'||p.burstReadyAt>value.game.time||value.game.phase!=='battle')return;
@@ -179,7 +187,7 @@ try{
   await button(isolated,'#create-room');assert.notEqual((await inspect(isolated)).room!.code,code);
   await button(isolated,'#start-game');await isolated.waitForSelector('#battlefield');
   assert.ok(await isolated.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
-  await isolatedContext.close();checks.push({name:'별도 방 1인 시작과 모바일 가로 넘침 없음',passed:true});
+  checks.push({name:'별도 방 1인 시작과 모바일 가로 넘침 없음',passed:true});
   let sawHazard=false,dodged=false,sawGuild=false,sawBoss=false,sawContract=false;
   let lastChapter=0,posterCaptured=false;
   const end=Date.now()+310_000;
@@ -231,6 +239,12 @@ try{
   }
   const commands=await main.locator('.command-bar').boundingBox();assert.ok(commands&&commands.y+commands.height<=1080);
   checks.push({name:'PC 주요 명령과 전장·정보가 녹화 화면 안에 표시',passed:true});
+  const mobileFinal=await inspect(isolated);assert.equal(mobileFinal.room!.phase,'finished');
+  assert.equal(await isolated.locator('.result-overlay').isVisible(),true);
+  await isolated.locator('#return-lobby').click();await isolated.waitForSelector('#start-game');
+  assert.ok(await isolated.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+  await isolatedContext.close();
+  checks.push({name:'모바일 개인 패배 결과 확인·대기실 복귀·다음 판 준비',passed:true});
   const recordedAudio=await main.evaluate(()=>(window as unknown as ReviewWindow).__review.audio());
   assert.ok(recordedAudio&&recordedAudio.base64.length>1000,'Capture real synthesized game output');
   await writeFile(resolve(directory,'game-audio.webm'),Buffer.from(recordedAudio.base64,'base64'));

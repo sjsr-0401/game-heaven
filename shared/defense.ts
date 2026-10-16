@@ -55,7 +55,7 @@ export interface Defender {
 export interface Enemy {
   id:number;ownerId:string;progress:number;hp:number;maxHp:number;speed:number;
   kind:'raider'|'brute'|'runner'|'wraith'|'boss';slowUntil:number;armor?:number;
-  shatteredUntil?:number;burnUntil?:number;burnDamage?:number;burnNext?:number;
+  shatteredUntil?:number;burnUntil?:number;burnDamage?:number;burnNext?:number;burnSourceId?:number;
   bossType?:BossKind;abilityAt?:number;enraged?:boolean;
 }
 export interface Hazard { id:number;ownerId:string;sourceId:number;x:number;y:number;radius:number;resolveAt:number; }

@@ -91,3 +91,11 @@ dialog{max-width:660px;width:calc(100vw - 40px);max-height:85vh;overflow:auto;ba
 
 .is-playing .game-sidebar{max-height:716px;overflow:auto;scrollbar-width:thin;scrollbar-color:#5a6570 transparent}
 @media(max-width:760px){.is-playing .game-sidebar{max-height:none;overflow:visible}}
+
+.unit-record{font-size:8px;color:#b8bdc4;margin-top:9px;text-align:center}
+#result-mvp{display:flex;align-items:center;justify-content:center;gap:13px;border-top:1px solid #a9b9c422;margin-top:22px;padding-top:14px;text-align:left}
+#result-mvp img{width:85px;height:85px;image-rendering:pixelated}#result-mvp div{display:flex;flex-direction:column;gap:7px}
+#result-mvp small{font-size:9px;color:#d1b98c}#result-mvp strong{font-size:18px;color:#e7e1d2}#result-mvp span{font-size:9px;color:#9baebb}
+@media(max-width:760px){.unit-record{margin-left:48%;font-size:7px}.result-card{padding:15px}.result-symbol{font-size:34px;margin-bottom:7px}.result-card h2{margin:10px 0;font-size:20px}.result-card .primary{margin-top:15px}#result-mvp{margin-top:12px;padding-top:5px}#result-mvp img{width:60px;height:60px}#result-mvp strong{font-size:14px}}
+
+@media(max-width:760px){.result-overlay{position:relative;inset:auto;min-height:360px;backdrop-filter:none;background:#142333}.result-card{width:100%}}

@@ -170,3 +170,20 @@ test('a telegraphed boss strike can be dodged by moving, and never stuns another
   assert.equal(target.stunnedUntil,0);assert.ok(s.state.defenders.filter(d=>d.ownerId==='b').every(d=>d.stunnedUntil===0));
   const stationary=prepare();advance(stationary,2.4);assert.ok(stationary.state.defenders.some(d=>d.ownerId==='a'&&d.stunnedUntil>stationary.state.time));
 });
+
+test('burn includes boss relic damage and credits its source mercenary',()=>{
+  const setup=(hunter:boolean)=>{
+    const s=make(90);battle(s);s.state.defenders=s.state.defenders.filter(d=>d.ownerId==='a').slice(0,3);
+    s.state.defenders.forEach(d=>{d.family='ember';d.slot=1;d.cooldown=0;});
+    if(hunter)s.state.players[0].relics=['hunter'];
+    s.state.enemies=[{...enemy(100,'a',100000),kind:'boss',bossType:'warden',abilityAt:999}];s.state.bossDeadlines.a=999;
+    s.tick(.1);return s;
+  };
+  const plain=setup(false),buffed=setup(true);
+  assert.ok(Math.abs(buffed.state.enemies[0].burnDamage!/plain.state.enemies[0].burnDamage!-1.45)<1e-10);
+  const source=buffed.state.defenders.find(d=>d.id===buffed.state.enemies[0].burnSourceId)!;
+  const nextBurn=buffed.state.enemies[0].burnNext;buffed.state.defenders[0].cooldown=0;buffed.tick(.1);
+  assert.equal(buffed.state.enemies[0].burnNext,nextBurn,'Another hit must not postpone a scheduled burn tick');
+  const before=source.damage;buffed.state.defenders.forEach(d=>{d.cooldown=999;});advance(buffed,.7);
+  assert.ok(source.damage>before);
+});

@@ -17,7 +17,7 @@ const hub = new RoomHub(modes);
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (url.pathname === '/health') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, rooms: hub.roomCount, version: '0.1.0' })); return; }
+    if (url.pathname === '/health') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, rooms: hub.roomCount, version: '0.3.0' })); return; }
     if (url.pathname === '/api/modes') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(hub.modeList())); return; }
     if (!production) { vite!.middlewares(req, res); return; }
     let filename = resolve(dist, `.${decodeURIComponent(url.pathname)}`);

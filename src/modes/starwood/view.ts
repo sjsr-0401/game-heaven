@@ -34,7 +34,7 @@ export class StarwoodView implements ClientMode {
           <div class="synergy-dock" id="synergies" aria-label="직업 시너지"></div>
           <div class="map-bottom"><span><i class="live-dot"></i> <span id="battle-state">첫 습격 준비</span></span><span id="board-count">4 / 16 용병</span></div>
           <div class="aim-banner" hidden>포격할 곳을 클릭하세요 <kbd>ESC</kbd> 취소</div>
-          <div class="result-overlay" hidden><div class="result-card"><div class="result-symbol">✦</div><p class="eyebrow">NIGHTWATCH / RESULTS</p><h2 id="result-title"></h2><p id="result-copy"></p><div id="result-stats"></div><button class="primary" id="return-lobby">대기실로 돌아가기 <span>↗</span></button><p class="result-wait" hidden>방장이 다음 판을 준비하고 있어요.</p></div></div>
+          <div class="result-overlay" hidden><div class="result-card"><div class="result-symbol">✦</div><p class="eyebrow">NIGHTWATCH / RESULTS</p><h2 id="result-title"></h2><p id="result-copy"></p><div id="result-stats"></div><div id="result-mvp"></div><button class="primary" id="return-lobby">대기실로 돌아가기 <span>↗</span></button><p class="result-wait" hidden>방장이 다음 판을 준비하고 있어요.</p></div></div>
         </section>
         <aside class="game-sidebar">
           <section class="panel wave-panel"><div class="section-label"><span>습격 현황</span><span id="wave-kind" class="muted">준비 중</span></div><div class="wave-title"><strong id="wave-number">00</strong><span>/ ${LAST_WAVE} <small>WAVES</small></span><div class="wave-icon">☽</div></div><div class="progress"><i id="wave-progress"></i></div><div class="row-between small"><span id="wave-time"></span><span id="enemy-count">0 / 55</span></div><p class="danger-note" id="danger-note">누적 55마리면 내 전장 패배</p></section>
@@ -156,6 +156,10 @@ export class StarwoodView implements ClientMode {
       this.$('result-title').textContent=player.status==='victory'?'성채를 지켜냈다.':'다음 밤엔, 다른 운명.';
       this.$('result-copy').textContent=player.reason+' · 최고 '+RARITIES[player.bestRank].name;
       this.$('result-stats').innerHTML=`<div><strong>${player.kills}</strong><small>처치</small></div><div><strong>${player.bosses}</strong><small>보스 격파</small></div><div><strong>${player.summons}</strong><small>용병 계약</small></div>`;
+      const mvp=state.defenders.filter(d=>d.ownerId===player.id).sort((a,b)=>b.damage-a.damage)[0];
+      const mvpKey=mvp?mvp.family+'-'+mvp.rank+'-'+mvp.id:'';
+      if(mvp&&!this.images.has(mvpKey))this.images.set(mvpKey,portrait(mvp.family,mvp.rank,92,mvp.id));
+      if(mvp)this.$('result-mvp').innerHTML=`<img src="${this.images.get(mvpKey)}" alt="${FAMILIES_INFO[mvp.family].name}"/><div><small>용병 MVP · ${RARITIES[mvp.rank].name}</small><strong>${FAMILIES_INFO[mvp.family].name}</strong><span>${Math.round(mvp.damage).toLocaleString()} 피해 · ${mvp.kills} 처치</span></div>`;
       this.context.element.querySelector<HTMLDialogElement>('.relic-dialog')!.close();
       this.context.element.querySelector<HTMLDialogElement>('.dismiss-dialog')!.close();
       this.$('return-lobby').hidden=room.hostId!==this.context.playerId;
@@ -238,8 +242,9 @@ export class StarwoodView implements ClientMode {
       const info=FAMILIES_INFO[unit.family],rarity=RARITIES[unit.rank],owner=state.players.find(p=>p.id===unit.ownerId)!;
       const stats=armyStats(unit,owner,army);
       const detailKey=[unit.id,unit.rank,owner.upgrade,this.canCommand(),unit.priority,owner.relics.join(','),stats.damage,stats.interval,stats.range,stats.guild].join(':');
+      const record=detail.querySelector<HTMLElement>('.unit-record');if(record)record.textContent=unit.kills+' 처치 · '+Math.round(unit.damage).toLocaleString()+' 피해';
       if(this.detailKey===detailKey)return;this.detailKey=detailKey;
-      detail.innerHTML=`<div class="guardian-heading"><div class="portrait" style="--rank-color:${rarity.color}"><img src="${this.images.get(key)}" alt="${info.name}" /></div><div><span class="rarity" style="color:${rarity.color}">${rarity.name} · ×${rarity.multiplier}</span><h3>${info.name}</h3><small>${info.role}</small></div></div><div class="guardian-stats"><div><small>공격력</small><b>${stats.damage}</b></div><div><small>공격 주기</small><b>${stats.interval.toFixed(2)}초</b></div><div><small>사거리</small><b>${stats.range}</b></div></div><div class="priority-picker" aria-label="공격 우선순위">${Object.entries(PRIORITIES).map(([id,label])=>`<button data-priority="${id}" class="${unit.priority===id?'active':''}" ${this.canCommand()?'':'disabled'}>${label}</button>`).join('')}</div><p class="guild-note ${stats.guild?'active':''}">${stats.guild?'✦ 시너지 활성 · ':''}${info.guild}</p><button class="merge-button" data-dismiss ${this.canCommand()?'':'disabled'}>용병 해고 · ${dismissValue(unit.rank)} G 환급</button><p class="selection-tip">드래그로 이동 · 같은 칸이면 자리 교환</p>`;
+      detail.innerHTML=`<div class="guardian-heading"><div class="portrait" style="--rank-color:${rarity.color}"><img src="${this.images.get(key)}" alt="${info.name}" /></div><div><span class="rarity" style="color:${rarity.color}">${rarity.name} · ×${rarity.multiplier}</span><h3>${info.name}</h3><small>${info.role}</small></div></div><div class="guardian-stats"><div><small>공격력</small><b>${stats.damage}</b></div><div><small>공격 주기</small><b>${stats.interval.toFixed(2)}초</b></div><div><small>사거리</small><b>${stats.range}</b></div></div><div class="priority-picker" aria-label="공격 우선순위">${Object.entries(PRIORITIES).map(([id,label])=>`<button data-priority="${id}" class="${unit.priority===id?'active':''}" ${this.canCommand()?'':'disabled'}>${label}</button>`).join('')}</div><p class="guild-note ${stats.guild?'active':''}">${stats.guild?'✦ 시너지 활성 · ':''}${info.guild}</p><button class="merge-button" data-dismiss ${this.canCommand()?'':'disabled'}>용병 해고 · ${dismissValue(unit.rank)} G 환급</button><p class="unit-record">${unit.kills} 처치 · ${Math.round(unit.damage).toLocaleString()} 피해</p><p class="selection-tip">드래그로 이동 · 같은 칸이면 자리 교환</p>`;
     }else if(!detail.querySelector('.empty-selection')){
       this.detailKey='';detail.innerHTML='<div class="empty-selection"><span>⌖</span><p>용병을 선택하세요</p><small>사거리·공격력·장비 확인</small></div>';
     }

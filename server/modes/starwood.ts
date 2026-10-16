@@ -207,7 +207,7 @@ export class StarwoodSession implements ModeSession {
         enemy.progress+=enemy.speed*dt*(enemy.slowUntil>this.state.time?.52:1);
         this.bossActions(enemy,army);
         if((enemy.burnUntil??0)>this.state.time&&this.state.time>=(enemy.burnNext??0)){
-          enemy.burnNext=this.state.time+.5;this.damage(enemy,enemy.burnDamage??0,undefined,false,'ember',true);
+          enemy.burnNext=this.state.time+.5;this.damage(enemy,enemy.burnDamage??0,army.find(d=>d.id===enemy.burnSourceId),false,'ember',true);
         }
       }
       for(const unit of army){
@@ -228,7 +228,11 @@ export class StarwoodSession implements ModeSession {
             if(unit.family==='sentinel')enemy.shatteredUntil=this.state.time+(stats.guild?6:3);
             this.damage(enemy,amount(enemy),unit,critical,unit.family,unit.family==='sentinel');
             if(unit.family==='ember'&&stats.guild&&enemy.hp>0){
-              enemy.burnUntil=this.state.time+3;enemy.burnDamage=Math.max(enemy.burnDamage??0,raw*.12);enemy.burnNext=this.state.time+.5;
+              const wasBurning=(enemy.burnUntil??0)>this.state.time;
+              enemy.burnUntil=this.state.time+3;
+              const burn=amount(enemy)*.12;
+              if(!wasBurning||burn>=(enemy.burnDamage??0)){enemy.burnDamage=burn;enemy.burnSourceId=unit.id;}
+              if(!wasBurning)enemy.burnNext=this.state.time+.5;
             }
           }
         }else if(unit.family==='volt'){
