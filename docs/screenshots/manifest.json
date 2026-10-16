@@ -1,60 +1,73 @@
 {
-  "sourceCommit": "e584cb3bc3ade30961c4627dd04cbf0bfd0b73fc",
-  "workflowRun": 38868286848,
+  "sourceCommit": "6743bfab89d3c76be03dfb744219142d2053c0e7",
+  "workflowRun": 38870532297,
   "captureMethod": "Chromium native screen recording",
   "quality": "economy",
-  "twoPlayerFps": 12,
-  "fourPlayerFps": 8,
-  "sourceDurationSeconds": 291.24,
-  "recordingWallSeconds": 291.262,
+  "twoPlayerFps": 15,
+  "fourPlayerFps": 11,
+  "video": {
+    "width": 1280,
+    "height": 800,
+    "r_frame_rate": "25/1"
+  },
+  "sourceDurationSeconds": 285.36,
+  "recordingWallSeconds": 285.27,
   "entries": [
     {
       "path": "docs/screenshots/menu.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "f3508458b6ee8f278d39f80b895df52036cada85",
-      "bytes": 663623,
-      "sha256": "841989fd2b36969d24700d6a8295625ea267b341a65de1d16b5a2fe49801177d"
+      "sha": "2045a235188796cd11d8df59650c340310faca37",
+      "bytes": 664329,
+      "sha256": "5eb90d6a4021d0cc6c6bd65aab13ea5f7a941fd43f36341543be0115c8d34575"
     },
     {
       "path": "docs/screenshots/play.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "bdba83c47cb881224cb825c688c95c80f41785a5",
-      "bytes": 654683,
-      "sha256": "027a5f11df1d4131cd16ed56be297670120533d99d08473fb9bfb0bffe26ae70"
+      "sha": "30d3f42872a6d1a29353710348528f27b55566fa",
+      "bytes": 599006,
+      "sha256": "6c79c3ab212fb543b23f798905e8501e27170177344e03ae9fa8fbc4518dcc97"
     },
     {
       "path": "docs/screenshots/canal.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "a7e1f1386c00490155015d6a5db5c2bc787a4bbf",
-      "bytes": 669905,
-      "sha256": "1d66f465e3666c11c693fb8681119dcc34757632339b7105538374ca8307a719"
+      "sha": "9c25e39c4b94a6bfb1bc566adf5700750350fe9d",
+      "bytes": 668115,
+      "sha256": "74bff70fb137924b58f15e5dd9e1098f76623eda118927ef04d0b4b0d79e9834"
     },
     {
       "path": "docs/screenshots/boss.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "9ee2ee5873a8afa5746d5411171e7ac1a38c55af",
-      "bytes": 633343,
-      "sha256": "8e4ef742c13bcc4ae22996fa60a00accb702665b7bc8bc665c9dba62ac76571c"
+      "sha": "cc1c5b052fe2be519e574f8c245c3b8a0e96d19c",
+      "bytes": 635418,
+      "sha256": "38d54179f120001144401262b8e4fad7cbfed0c637b851bde1d6bd92454dda78"
     },
     {
       "path": "docs/screenshots/four-player.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "71b37d44c1b8e2ad3342064f2027c1b8323c39a4",
-      "bytes": 639445,
-      "sha256": "522f180ed609d29eb75a963b2ae5dfeaeaa4f55ce60af36163a3f9650d8a846f"
+      "sha": "af0a6207bd30257460fa41048ae5434a6d5ddf4d",
+      "bytes": 630004,
+      "sha256": "02c1216defe268bcf87d537f0a1e17c65563105035f69326c2f85782ae6c7c63"
+    },
+    {
+      "path": "docs/screenshots/four-player-high.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "c021e3eeb4274b3797f1ddfffdfaa1ebec130831",
+      "bytes": 719936,
+      "sha256": "f0d782d9d0cedd7fad189b2400e99ec2d930cd5e8a3dbcb6c8eb3acadba4b7ce"
     },
     {
       "path": "docs/screenshots/action-strip.jpg",
       "mode": "100644",
       "type": "blob",
-      "sha": "25e845142d92bfb44b9c1d0f02b79a9d1192a457",
-      "bytes": 116132,
-      "sha256": "8f13a9e0f08ceabf821e5894abaf809f9f942e01832c8de4ba510203837d54c2"
+      "sha": "f71fb31b301d0be386cc6296550f356e71e52eb5",
+      "bytes": 107241,
+      "sha256": "2c2386720ad0b27d5d8a1dc790219e3c7e8db52a3847f3cdc19318ef4697d353"
     }
   ]
 }

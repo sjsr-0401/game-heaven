@@ -4,9 +4,11 @@
 
 갈고리로 부품을 회수하고, 화약통을 던져 길을 뚫고, 쓰러진 동료를 끌어올립니다. 집은 자동으로 달리며, 정비소에서 공용 부품으로 장비를 개조하고 다음 경로에 투표합니다.
 
-![실제 4인 플레이](docs/screenshots/four-player.png)
+![실제 고화질 4인 플레이](docs/screenshots/four-player-high.png)
 
-[캡처 더 보기](docs/screenshots.md) · [플레이 영상 실행](https://github.com/sjsr-0401/game-heaven/actions/runs/38868286848) · [수정한 이유](docs/visual-review-2026-10-16.md)
+같은 4인 원정의 고화질 캡처입니다. 영상은 절전 모드로 녹화했습니다.
+
+[캡처 더 보기](docs/screenshots.md) · [플레이 영상 실행](https://github.com/sjsr-0401/game-heaven/actions/runs/38870532297) · [수정한 이유](docs/visual-review-2026-10-16.md)
 
 ## 플레이
 
@@ -72,4 +74,4 @@ GitHub Actions의 **Cloud review**가 설치, TypeScript 검사, 프로덕션 �
 
 이전 디펜스 코드는 기록 보존을 위해 남아 있으며 현재 기본 게임에서는 등록하지 않습니다. 새 게임은 이전 도트 리소스를 사용하지 않습니다.
 
-집·인물·적·물체·연출은 코드로 제작하고, 배경 건물 일부는 Kenney의 CC0 모델을 사용합니다. Do Hyeon 글꼴은 SIL OFL 1.1입니다. 원문 라이선스와 파일별 출처·해시는 `public/art/`에 포함합니다. 충돌·발소리·일부 UI 효과음은 Kenney의 CC0 음원을 사용하고, 엔진 저음·바람·경고음은 직접 합성합니다. Three.js와 타입 패키지는 MIT 등 각 패키지 라이선스를 따릅니다. 상용 게임의 이미지·모델·음원·맵을 추출하지 않았습니다.
+집·인물·적·물체·연출은 코드로 제작하고, 배경 건물 일부는 Kenney의 CC0 모델을 사용합니다. Do Hyeon 글꼴은 SIL OFL 1.1입니다. 원문 라이선스와 파일별 출처·해시는 `public/art/`에 포함합니다. 충돌·발소리·일부 UI 효과음은 Kenney의 CC0 음원을 사용하고, 엔진 저음·바람·경고음은 직접 합성합니다. Three.js·ws의 고지는 [외부 구성요소 고지](docs/third-party-notices.md)에 보관합니다. 타입 패키지와 개발 도구는 각 패키지의 라이선스를 따릅니다. 상용 게임의 이미지·모델·음원·맵을 추출하지 않았습니다.
