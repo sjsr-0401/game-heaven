@@ -18,7 +18,7 @@ function check(name:string,passed=true):void{checks.push({name,passed});assert.o
 async function quick(page:Page,selector:string):Promise<boolean>{const el=page.locator(selector).first();if(!await el.isVisible()||!await el.isEnabled())return false;const box=await el.boundingBox();if(!box)return false;await page.mouse.click(box.x+box.width/2,box.y+box.height/2);return true;}
 async function snapshot(page:Page):Promise<{room:RoomSnapshot|null;playerId:string}>{return await page.evaluate(()=>window.__review!.snapshot());}
 async function newPage(name:string,record=false):Promise<Page>{
-  const context=await browser.newContext({viewport:record?{width:1440,height:900}:{width:960,height:700},...(record?{recordVideo:{dir:'artifacts/raw',size:{width:1440,height:900}}}:{})});
+  const context=await browser.newContext({viewport:record?{width:1440,height:900}:{width:960,height:700},deviceScaleFactor:record?1:.65,...(record?{recordVideo:{dir:'artifacts/raw',size:{width:1440,height:900}}}:{})});
   contexts.push(context);const page=await context.newPage();pages.push(page);keys.set(page,new Set());
   page.on('pageerror',e=>errors.push(e.message));page.on('console',message=>{if(message.type()==='error'&&!message.text().includes('favicon'))errors.push(message.text());});
   if(record)videoStart=Date.now();
@@ -35,7 +35,8 @@ async function agent(page:Page,index:number):Promise<void>{
   const desired=new Set<string>();if(dx>.3)desired.add('d');if(dx<-.3)desired.add('a');if(up>.3)desired.add('w');if(up<-.3)desired.add('s');
   const held=keys.get(page)??new Set<string>();
   for(const key of held)if(!desired.has(key))await page.keyboard.up(key);
-  for(const key of desired)if(!held.has(key))await page.keyboard.down(key);keys.set(page,desired);
+  for(const key of desired)if(!held.has(key))await page.keyboard.down(key);for(const key of desired)if(held.has(key))await page.keyboard.down(key);keys.set(page,desired);
+  if(d.dodge&&Date.now()>(lastActions.get(p.id+'extra-dodge')??0)){await page.keyboard.press('Space');lastActions.set(p.id+'extra-dodge',Date.now()+1500);}
   if(s.phase==='camp'){
     if(d.upgrade&&Date.now()>(lastActions.get(p.id+'upgrade')??0)){await quick(page,'[data-upgrade="'+d.upgrade+'"]');lastActions.set(p.id+'upgrade',Date.now()+700);}
     if(d.route&&!s.votes[p.id])await quick(page,'[data-route="'+d.route+'"]');return;
@@ -66,7 +67,7 @@ try{
     if(!savedPoster&&s.clock>12){savedPoster=true;await main.screenshot({path:'artifacts/poster.png'});await main.screenshot({path:'artifacts/combat.png'});}
     if(!sawCarry&&s.crew.some(p=>p.carry)){sawCarry=true;await section('끌어오고, 던지고','갈고리로 회수한 물체를 실제 투사체로 던집니다. 피해는 서버에서 판정합니다.',22);}
     if(!sawThrow&&s.crew.some(p=>p.stats.throws>0)){sawThrow=true;check('실제 물체 회수와 투척',true);}
-    if(!reloaded&&s.clock>32){reloaded=true;const before=await snapshot(friend);await release(friend);await friend.reload();await friend.locator('.world canvas').waitFor({timeout:20000});const after=await snapshot(friend);check('재접속으로 같은 캐릭터와 진행 상태 복원',before.playerId===after.playerId&&after.room!.phase==='playing');}
+    if(!reloaded&&s.clock>8){reloaded=true;const before=await snapshot(friend);await release(friend);await friend.reload();await friend.waitForFunction(()=>window.__review?.snapshot().room?.game!=null,{},{timeout:60000});await friend.locator('.world canvas').waitFor({state:'attached',timeout:10000});const after=await snapshot(friend);check('재접속으로 같은 캐릭터와 진행 상태 복원',before.playerId===after.playerId&&after.room!.phase==='playing');}
     if(!sawGate&&!s.gate.open&&s.gate.z-s.house.z<12){sawGate=true;await section('길을 여는 방법도 함께 고른다','갈고리로 장애물을 뜯고, 화약통으로 길을 뚫습니다.',22);await main.screenshot({path:'artifacts/gate.png'});}
     if(!sawCamp&&s.phase==='camp'){sawCamp=true;await section('숨 돌림과 공동 개조','실제 회수한 부품을 함께 쓰고, 다음 경로에 투표합니다.',17);await main.screenshot({path:'artifacts/camp.png'});check('장애물 돌파 후 정비와 경로 투표',true);}
     if(!sawSecond&&s.stage===2){sawSecond=true;await section('이번에는 물안개 운하','투표 결과가 다음 구역의 분위기와 진행에 반영됩니다.',20);await main.screenshot({path:'artifacts/canal.png'});}
@@ -126,6 +127,6 @@ try{
   await writeFile('artifacts/verification.json',JSON.stringify(metadata,null,2));console.log('FINAL_REVIEW '+JSON.stringify(metadata));
 }catch(error){
   for(let i=0;i<Math.min(pages.length,4);i++)try{await pages[i].screenshot({path:'artifacts/failure-'+i+'.png'});}catch{}
-  await writeFile('artifacts/failure-details.json',JSON.stringify({error:String(error),stack:error instanceof Error?error.stack:'',errors,checks,snapshots:await Promise.all(pages.slice(0,4).map(async p=>{try{return await snapshot(p);}catch{return null;}}))},null,2));
+  await writeFile('artifacts/failure-details.json',JSON.stringify({error:String(error),stack:error instanceof Error?error.stack:'',errors,checks,dom:await Promise.all(pages.slice(0,4).map(async p=>{try{return await p.evaluate(()=>({url:location.href,canvases:[...document.querySelectorAll('canvas')].map(c=>({rect:c.getBoundingClientRect().toJSON(),parent:c.parentElement?.className,display:getComputedStyle(c).display,visibility:getComputedStyle(c).visibility})),body:document.body.className}));}catch{return null;}})),snapshots:await Promise.all(pages.slice(0,4).map(async p=>{try{return await snapshot(p);}catch{return null;}}))},null,2));
   await browser.close();throw error;
 }

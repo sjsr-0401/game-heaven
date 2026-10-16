@@ -177,7 +177,7 @@ export class EscapeSession implements ModeSession {
   }
   private spawnEnemy(kind?:Enemy['kind']):void {
     const s=this.state,n=this.actors().length;
-    kind??=(s.stage>=2&&this.random()<.22?'snatcher':this.random()<.28?'rammer':'scrapper');
+    kind??=(s.biome==='canal'&&this.random()<.35?'snatcher':this.random()<(s.biome==='foundry'?.5:.28)?'rammer':'scrapper');
     const hp=kind==='devourer'?600+n*180:kind==='rammer'?115:kind==='snatcher'?55:65;
     const e:Enemy={id:this.id('e'),kind,x:kind==='devourer'?0:(this.random()<.5?-1:1)*(10+this.random()*4),
       z:s.house.z+(kind==='devourer'?13:this.random()*22-5),hp,maxHp:hp,armor:kind==='rammer'?45:0,
@@ -213,7 +213,7 @@ export class EscapeSession implements ModeSession {
     if(active)s.stormZ+=(s.stage===3?.43:.34)*dt;
     for(const p of this.actors()){
       if(onDeck(p,{x:0,z:lastZ}))p.z+=delta;
-      if(p.downUntil>0&&p.downUntil<=s.clock){p.downUntil=0;p.hp=65;p.x=-3.1;p.z=s.house.z;p.invulnerableUntil=s.clock+3;s.house.hp-=8;this.event('rescue',p,{text:'긴급 복귀'});}
+      if(p.downUntil>0&&p.downUntil<=s.clock){p.downUntil=0;p.hp=65;p.x=s.crew.indexOf(p)%2?-3.1:3.1;p.z=s.house.z;p.invulnerableUntil=s.clock+3;s.house.hp-=8;this.event('rescue',p,{text:'긴급 복귀'});}
       if(p.downUntil>s.clock)continue;
       const input=this.motions.get(p.id),fresh=input&&s.clock-input.at<.32;
       let x=fresh?input.x:0,z=fresh?input.z:0;

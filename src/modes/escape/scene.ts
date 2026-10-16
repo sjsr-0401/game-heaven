@@ -23,7 +23,7 @@ function ball(g:T.Object3D,x:number,y:number,z:number,r:number,color:string,deta
 function batch(group:T.Group):T.Group {
   group.updateMatrixWorld(true);const buckets=new Map<T.Material,T.BufferGeometry[]>();
   group.traverse(o=>{if(o instanceof T.Mesh&&o.geometry&&!(o.material instanceof Array)){
-    const list=buckets.get(o.material)??[];list.push(o.geometry.clone().applyMatrix4(o.matrixWorld));buckets.set(o.material,list);
+    const list=buckets.get(o.material)??[];const original=o.geometry.clone();const compatible=original.index?original.toNonIndexed():original;compatible.deleteAttribute('uv');compatible.applyMatrix4(o.matrixWorld);list.push(compatible);if(compatible!==original)original.dispose();buckets.set(o.material,list);
   }});
   const merged=new T.Group();
   for(const [material,list] of buckets){const geo=mergeGeometries(list,false);if(geo){const m=new T.Mesh(geo,material);m.castShadow=true;m.receiveShadow=true;merged.add(m);}list.forEach(g=>g.dispose());}
@@ -194,18 +194,18 @@ export class EscapeScene {
   private aim:Vec={x:0,z:8};private aimRing=ring(.7,'#fff0b2',.8);private trajectory=new T.Line(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#f2e2b4',dashSize:.35,gapSize:.25,transparent:true,opacity:.6}));
   private state:EscapeState|null=null;private received=0;private input={x:0,z:0};private ownId='';private seen=0;private lastHouse=0;
   private last=performance.now();private raf=0;private disposed=false;private observer:ResizeObserver;private viewZ=0;private shake=0;private elapsed=0;
-  private eventListener:(e:EscapeEvent)=>void=()=>{};private frameCount=0;private totalFrameMs=0;
+  private eventListener:(e:EscapeEvent)=>void=()=>{};private nextShadow=0;private frameCount=0;private totalFrameMs=0;
   private raycaster=new T.Raycaster();private plane=new T.Plane(new T.Vector3(0,1,0),-.4);private vector=new T.Vector3();
   private ash:T.InstancedMesh;private dummy=new T.Object3D();private width=1;private height=1;
   constructor(private container:HTMLElement) {
     this.renderer=new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
     this.canvas=this.renderer.domElement;this.canvas.setAttribute('aria-label','집째로 도망 3D 전장');this.canvas.tabIndex=0;container.append(this.canvas);
-    this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;
-    this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.2;
-    this.scene.background=new T.Color('#879e91');this.scene.fog=new T.FogExp2('#879e91',.023);
+    this.renderer.setPixelRatio(Math.min(devicePixelRatio,1.5));this.renderer.shadowMap.enabled=true;this.renderer.shadowMap.type=T.PCFSoftShadowMap;this.renderer.shadowMap.autoUpdate=false;
+    this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.06;
+    this.scene.background=new T.Color('#879e91');this.scene.fog=new T.FogExp2('#879e91',.011);
     this.camera=new T.OrthographicCamera(-25,25,17,-17,.1,150);
-    this.scene.add(new T.HemisphereLight('#ffedd0','#456b6c',2.1));
-    this.light=new T.DirectionalLight('#ffdb9e',3);this.light.castShadow=true;this.light.shadow.mapSize.set(1024,1024);
+    this.scene.add(new T.HemisphereLight('#ffedd0','#456b6c',1.6));
+    this.light=new T.DirectionalLight('#ffdb9e',2.7);this.light.castShadow=true;this.light.shadow.mapSize.set(1024,1024);
     Object.assign(this.light.shadow.camera,{left:-27,right:27,top:30,bottom:-24,near:1,far:90});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.045;
     this.scene.add(this.light,this.light.target);this.scene.add(this.house.root);this.scene.add(this.aimRing,this.trajectory);
     const fill=new T.DirectionalLight('#8ad6da',.7);fill.position.set(-15,8,-20);this.scene.add(fill);
@@ -266,8 +266,9 @@ export class EscapeScene {
   }
   private render=():void=>{
     if(this.disposed)return;
-    const now=performance.now(),dt=Math.min((now-this.last)/1000,.06);this.last=now;this.elapsed+=dt;
-    if(this.state){this.frameCount++;this.totalFrameMs+=dt*1000;}
+    if(performance.now()-this.last<1000/(this.state?(document.hasFocus()?60:12):15)){this.raf=requestAnimationFrame(this.render);return;}
+    const now=performance.now(),rawMs=now-this.last,dt=Math.min(rawMs/1000,.06);this.last=now;this.elapsed+=dt;
+    if(this.state){this.frameCount++;this.totalFrameMs+=rawMs;}
     const s=this.state,z=s?.house.z??0,clock=s?.clock??this.elapsed;
     this.viewZ+=(z-this.viewZ)*Math.min(1,dt*8);
     this.house.root.position.z=this.viewZ;this.house.root.rotation.z=Math.sin(clock*4)*.006*(s?.house.speed??.3);
@@ -318,7 +319,7 @@ export class EscapeScene {
       for(const e of s.enemies){let g=this.monsters.get(e.id);if(!g){g=monster(e);g.position.set(e.x,0,e.z);this.scene.add(g);this.monsters.set(e.id,g);}
         g.position.x+=(e.x-g.position.x)*Math.min(1,dt*12);g.position.z+=(e.z-g.position.z)*Math.min(1,dt*12);
         g.position.y=e.kind==='devourer'?Math.sin(clock*12)*.035:Math.abs(Math.sin(clock*7+e.born))*.1;
-        if(e.kind!=='devourer')g.rotation.y=Math.atan2(-e.x,s.house.z-e.z);else g.rotation.y=0;
+        if(e.kind!=='devourer')g.rotation.y=Math.atan2(-e.x,s.house.z-e.z)+Math.PI;else g.rotation.y=0;
         g.rotation.z=e.stunnedUntil>s.clock?Math.sin(clock*35)*.09:Math.sin(clock*6+e.born)*.015;
         g.scale.setScalar(e.kind==='devourer'&&e.exposedUntil>s.clock?1.02:1);
       }
@@ -349,6 +350,7 @@ export class EscapeScene {
     this.light.position.set(-14,30,this.viewZ-12);this.light.target.position.set(0,0,this.viewZ+3);
     this.aimRing.visible=!!own&&s?.phase==='travel';this.aimRing.position.set(this.aim.x,.09,this.aim.z);
     this.trajectory.visible=!!own?.carry&&s?.phase==='travel';if(this.trajectory.visible&&own){const points=[];const d=Math.hypot(this.aim.x-own.x,this.aim.z-own.z),ratio=Math.min(1,18/Math.max(.1,d));for(let i=0;i<=20;i++){const t=i/20;points.push(new T.Vector3(own.x+(this.aim.x-own.x)*ratio*t,1.1+Math.sin(t*Math.PI)*2,own.z+(this.aim.z-own.z)*ratio*t));}this.trajectory.geometry.dispose();this.trajectory.geometry=new T.BufferGeometry().setFromPoints(points);this.trajectory.computeLineDistances();}
+    if(now>this.nextShadow){this.renderer.shadowMap.needsUpdate=true;this.nextShadow=now+70;}
     this.renderer.render(this.scene,this.camera);this.lastHouse=z;this.raf=requestAnimationFrame(this.render);
   };
   destroy():void {

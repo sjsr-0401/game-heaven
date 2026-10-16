@@ -7,7 +7,7 @@ const escape=(v:unknown)=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;
 export class EscapeView implements ClientMode {
   readonly scene:EscapeScene;
   private state:EscapeState|null=null;private room:RoomSnapshot|null=null;private keys=new Set<string>();private mouse={x:0,z:8};
-  private pressed=false;private nextHook=0;private raf=0;private lastInput=0;private lastHud=0;private lastPhase='';private abort=new AbortController();
+  private pressed=false;private nextHook=0;private raf=0;private lastInput=0;private lastHud=0;private lastPhase='';private campKey='';private abort=new AbortController();
   private labels:HTMLDivElement;private floats:HTMLDivElement;private heldLabel:HTMLElement;
   constructor(private context:ModeContext){
     context.element.innerHTML='<div class="playfield"><div class="world"></div><div class="world-vignette"></div><div class="world-labels"></div><div class="float-layer"></div>'
@@ -106,9 +106,9 @@ export class EscapeView implements ClientMode {
     const camp=root.querySelector<HTMLElement>('.camp-overlay')!;camp.hidden=s.phase!=='camp';
     if(s.phase==='camp'){
       const vote=s.votes[p.id],remaining=Math.ceil(s.campUntil-s.clock);
-      camp.innerHTML='<div class="camp-card"><span class="small-label">A LITTLE BREATH / 정비 시간 '+remaining+'초</span><h2>다음 길은, 우리가 고르자.</h2><p>개조는 모두에게 적용돼요. 공용 부품 <b>'+s.resources+'</b>개</p><div class="upgrade-grid">'
+      const campKey=JSON.stringify([s.resources,s.upgrades,s.votes]);if(this.campKey!==campKey){this.campKey=campKey;camp.innerHTML='<div class="camp-card"><span class="small-label">A LITTLE BREATH / 정비 시간 '+remaining+'초</span><h2>다음 길은, 우리가 고르자.</h2><p>개조는 모두에게 적용돼요. 공용 부품 <b>'+s.resources+'</b>개</p><div class="upgrade-grid">'
         +(Object.keys(UPGRADE_INFO) as UpgradeId[]).map(k=>{const u=UPGRADE_INFO[k],level=s.upgrades[k],cost=upgradeCost(level);return'<button data-upgrade="'+k+'" '+(level>=2||s.resources<cost?'disabled':'')+'><i>'+u.icon+'</i><span><b>'+u.name+' <small>'+level+'/2</small></b><small>'+u.description+'</small></span><em>'+(level>=2?'완료':'⚙ '+cost)+'</em></button>';}).join('')
-        +'</div><div class="route-choices"><button data-route="canal" class="'+(vote==='canal'?'chosen':'')+'"><b>물안개 운하</b><small>넓은 길 · 빠른 적 · 차가운 물안개</small><span>'+Object.values(s.votes).filter(v=>v==='canal').length+'표</span></button><button data-route="foundry" class="'+(vote==='foundry'?'chosen':'')+'"><b>붉은 제련소</b><small>뜨거운 거리 · 무거운 적 · 붉은 석양</small><span>'+Object.values(s.votes).filter(v=>v==='foundry').length+'표</span></button></div><footer>다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발</footer></div>';
+        +'</div><div class="route-choices"><button data-route="canal" class="'+(vote==='canal'?'chosen':'')+'"><b>물안개 운하</b><small>넓은 길 · 빠른 적 · 차가운 물안개</small><span>'+Object.values(s.votes).filter(v=>v==='canal').length+'표</span></button><button data-route="foundry" class="'+(vote==='foundry'?'chosen':'')+'"><b>붉은 제련소</b><small>뜨거운 거리 · 무거운 적 · 붉은 석양</small><span>'+Object.values(s.votes).filter(v=>v==='foundry').length+'표</span></button></div><footer>다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발</footer></div>';}camp.querySelector('.small-label')!.textContent='A LITTLE BREATH / 정비 시간 '+remaining+'초';camp.querySelector('footer')!.textContent='다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발';
     }
     const ended=s.phase==='won'||s.phase==='lost',results=root.querySelector<HTMLElement>('.results-overlay')!;results.hidden=!ended;
     if(ended&&this.lastPhase!==s.phase){

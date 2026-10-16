@@ -82,12 +82,12 @@ test('production commands can complete seeded two, three and four-player expedit
     for(let tick=0;tick<30*650&&!g.finished();tick++){
       if(g.state.clock>=next){next=g.state.clock+.13;
         g.state.crew.forEach((p,i)=>{const d=decide(g.state,p.id,i);g.command(p.id,{kind:'input',...d.move,aimX:d.aim.x-p.x,aimZ:d.aim.z-p.z});
-          if(d.route)g.command(p.id,{kind:'vote',route:d.route});if(d.upgrade)g.command(p.id,{kind:'upgrade',upgrade:d.upgrade});
+          if(d.dodge)g.command(p.id,{kind:'dodge'});if(d.route)g.command(p.id,{kind:'vote',route:d.route});if(d.upgrade)g.command(p.id,{kind:'upgrade',upgrade:d.upgrade});
           if(d.action&&g.state.clock>(cds.get(p.id+d.action)??0)){g.command(p.id,{kind:d.action,...d.aim});cds.set(p.id+d.action,g.state.clock+(d.action==='hook'?.53:d.action==='dodge'?1.5:.5));}
         });
       }g.tick(1/30);
     }
-    results.push({n,seed,phase:g.state.phase,distance:Math.round(g.state.distance),hp:Math.round(g.state.house.hp),seconds:Math.round(g.state.clock),boss:g.state.bossDefeated});
+    results.push({n,seed,phase:g.state.phase,distance:Math.round(g.state.distance),hp:Math.round(g.state.house.hp),seconds:Math.round(g.state.clock),boss:g.state.bossDefeated,stats:g.state.crew.map(p=>p.stats)});
     assert.ok(g.finished());assert.ok(Number.isFinite(g.state.house.hp));assert.ok(g.state.crew.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)));
   }console.log('EXPEDITION_SAMPLES '+JSON.stringify(results));
 });
