@@ -83,7 +83,7 @@ test('production commands can complete seeded two, three and four-player expedit
       if(g.state.clock>=next){next=g.state.clock+.13;
         g.state.crew.forEach((p,i)=>{const d=decide(g.state,p.id,i);g.command(p.id,{kind:'input',...d.move,aimX:d.aim.x-p.x,aimZ:d.aim.z-p.z});
           if(d.dodge)g.command(p.id,{kind:'dodge'});if(d.route)g.command(p.id,{kind:'vote',route:d.route});if(d.upgrade)g.command(p.id,{kind:'upgrade',upgrade:d.upgrade});
-          if(d.action&&g.state.clock>(cds.get(p.id+d.action)??0)){g.command(p.id,{kind:d.action,...d.aim});cds.set(p.id+d.action,g.state.clock+(d.action==='hook'?.53:d.action==='dodge'?1.5:.5));}
+          if(d.action&&g.state.clock>(cds.get(p.id+d.action)??0)){g.command(p.id,{kind:d.action,x:d.aim.x,z:d.aim.z});cds.set(p.id+d.action,g.state.clock+(d.action==='hook'?.53:d.action==='dodge'?1.5:.5));}
         });
       }g.tick(1/30);
     }

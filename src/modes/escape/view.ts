@@ -86,7 +86,7 @@ export class EscapeView implements ClientMode {
     text('#hull-text',Math.ceil(s.house.hp)+' / '+s.house.maxHp);(root.querySelector('#hull-bar') as HTMLElement).style.width=(s.house.hp/s.house.maxHp*100)+'%';
     text('#stock',String(s.resources));text('#journey-time',Math.floor(s.clock/60).toString().padStart(2,'0')+':'+Math.floor(s.clock%60).toString().padStart(2,'0'));
     (root.querySelector('#journey-bar') as HTMLElement).style.width=(targetProgress(s)*100)+'%';
-    text('#distance-text','방벽까지 '+Math.max(0,Math.ceil(140-s.house.z))+' m');
+    text('#distance-text','방벽 '+Math.max(0,Math.ceil(140-s.house.z))+'m · 폭풍 '+Math.max(0,Math.floor(s.house.z-s.stormZ))+'m 뒤');
     text('#engine-status',s.house.boostUntil>s.clock?'TURBO · '+Math.ceil(s.house.boostUntil-s.clock)+'초':s.house.speed===0?'길을 열어 주세요':'AUTOPILOT · 자동 주행 중');
     const boss=s.enemies.find(e=>e.kind==='devourer'),bossHud=root.querySelector<HTMLElement>('.boss-hud')!;bossHud.hidden=!boss;
     if(boss){text('#boss-percent',Math.ceil(boss.hp/boss.maxHp*100)+'%');(root.querySelector('#boss-bar') as HTMLElement).style.width=(boss.hp/boss.maxHp*100)+'%';text('#boss-hint',boss.exposedUntil>s.clock?'흡입구가 열렸다! 화약통을 던지세요':'붉은 경고를 피하고, 물건을 모으세요');}
@@ -137,4 +137,4 @@ export class EscapeView implements ClientMode {
   }
   destroy():void {this.abort.abort();cancelAnimationFrame(this.raf);this.keys.clear();this.scene.destroy();this.context.element.replaceChildren();}
 }
-function onDeckHeight(c:{x:number;z:number},s:EscapeState):number{return Math.abs(c.x)<4.6&&Math.abs(c.z-s.house.z)<5.6?.76:0;}
+function onDeckHeight(c:{x:number;z:number},s:EscapeState):number{return Math.abs(c.x)<4.6&&Math.abs(c.z-s.house.z)<5.6?1.61:0;}

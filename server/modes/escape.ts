@@ -81,6 +81,7 @@ export class EscapeSession implements ModeSession {
       if(!finite(raw.x)||!finite(raw.z)||s.clock<p.hookReady||p.carry)return{ok:false};
       p.hookReady=s.clock+.48;p.stats.hooks++;
       const range=12+s.upgrades.reel*3,a=Math.atan2(raw.z-p.z,raw.x-p.x);
+      p.aimX=Math.cos(a);p.aimZ=Math.sin(a);
       const end={x:p.x+Math.cos(a)*range,z:p.z+Math.sin(a)*range};
       const candidates:{distance:number;type:'crew'|'prop'|'enemy'|'gate';target:Vec & {id?:string}}[]=[];
       for(const c of this.actors())if(c.id!==id&&c.downUntil>s.clock&&distanceToSegment(c,p,end)<1.15&&dist(p,c)<=range)candidates.push({distance:dist(p,c),type:'crew',target:c});
@@ -112,7 +113,7 @@ export class EscapeSession implements ModeSession {
       const o=s.props.find(o=>o.id===p.carry&&o.owner===id);
       if(!o){for(const e of s.enemies)if(e.kind!=='devourer'&&dist(e,p)<3){this.damage(e,14,id);e.stunnedUntil=s.clock+.65;const d=Math.max(.1,dist(e,p));e.x+=(e.x-p.x)/d*2;e.z+=(e.z-p.z)/d*2;}return{ok:true};}
       const distance=clamp(Math.hypot(raw.x-p.x,raw.z-p.z),3,18),angle=Math.atan2(raw.z-p.z,raw.x-p.x);
-      o.x=p.x+p.aimX*.9;o.z=p.z+p.aimZ*.9;o.owner=null;o.by=id;o.vx=Math.cos(angle)*distance/.64;o.vz=Math.sin(angle)*distance/.64;
+      p.aimX=Math.cos(angle);p.aimZ=Math.sin(angle);o.x=p.x+p.aimX*.9;o.z=p.z+p.aimZ*.9;o.owner=null;o.by=id;o.vx=Math.cos(angle)*distance/.64;o.vz=Math.sin(angle)*distance/.64;
       o.flight=o.flightMax=.64;o.ttl=s.clock+4;p.carry=null;p.stats.throws++;
       this.event('throw',p,{by:id,toX:raw.x,toZ:raw.z,prop:o.kind});return{ok:true};
     }

@@ -10,7 +10,7 @@ const ffmpeg=process.env.FFMPEG_PATH??'ffmpeg',checks:{name:string;passed:boolea
 const segments:{start:number;end:number;title:string;description:string}[]=[];
 const sourceCommit=process.env.GITHUB_SHA??'uncommitted';
 await mkdir('artifacts',{recursive:true});
-const browser=await chromium.launch({headless:true,args:['--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-gpu-sandbox','--autoplay-policy=no-user-gesture-required']});
+const browser=await chromium.launch({headless:true,args:['--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-gpu-sandbox','--autoplay-policy=no-user-gesture-required']});
 const contexts:BrowserContext[]=[],pages:Page[]=[],errors:string[]=[],keys=new Map<Page,Set<string>>(),lastActions=new Map<string,number>();
 let main:Page,videoStart=0,mainContext:BrowserContext,audio:{base64:string;startedAt:number}|null=null;
 const now=()=> (Date.now()-videoStart)/1000;
@@ -22,7 +22,7 @@ async function newPage(name:string,record=false):Promise<Page>{
   contexts.push(context);const page=await context.newPage();pages.push(page);keys.set(page,new Set());
   page.on('pageerror',e=>errors.push(e.message));page.on('console',message=>{if(message.type()==='error'&&!message.text().includes('favicon'))errors.push(message.text());});
   if(record)videoStart=Date.now();
-  await page.goto(base+'/?review=1'+(record?'&record=1':''));await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
+  await page.goto(base+'/?review=1'+(record?'&record=1':'&graphics=economy'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
   return page;
 }
 async function caption(title:string,description:string):Promise<void>{await main.evaluate(({title,description})=>window.__review!.caption(title,description),{title,description});}
@@ -43,7 +43,7 @@ async function agent(page:Page,index:number):Promise<void>{
   }
   if(!d.action||Date.now()<(lastActions.get(p.id+d.action)??0))return;
   if(d.action==='hook'||d.action==='throw'){
-    const point=await page.evaluate(v=>window.__review!.project(v.x,v.z,.4),d.aim),size=page.viewportSize()!;
+    const point=await page.evaluate(v=>window.__review!.project(v.x,v.z),d.aim),size=page.viewportSize()!;
     if(point?.visible&&point.y>70&&point.y<size.height-105&&point.x>8&&point.x<size.width-8){await page.mouse.move(point.x,point.y);await page.mouse.click(point.x,point.y,{button:d.action==='throw'?'right':'left'});}
   }else await page.keyboard.press(d.action==='dodge'?'Space':d.action==='install'?'e':'q');
   lastActions.set(p.id+d.action,Date.now()+(d.action==='hook'?550:d.action==='dodge'?1450:480));
@@ -67,7 +67,6 @@ try{
     if(!savedPoster&&s.clock>12){savedPoster=true;await main.screenshot({path:'artifacts/poster.png'});await main.screenshot({path:'artifacts/combat.png'});}
     if(!sawCarry&&s.crew.some(p=>p.carry)){sawCarry=true;await section('끌어오고, 던지고','갈고리로 회수한 물체를 실제 투사체로 던집니다. 피해는 서버에서 판정합니다.',22);}
     if(!sawThrow&&s.crew.some(p=>p.stats.throws>0)){sawThrow=true;check('실제 물체 회수와 투척',true);}
-    if(!reloaded&&s.clock>8){reloaded=true;const before=await snapshot(friend);await release(friend);await friend.reload();await friend.waitForFunction(()=>window.__review?.snapshot().room?.game!=null,{},{timeout:60000});await friend.locator('.world canvas').waitFor({state:'attached',timeout:10000});const after=await snapshot(friend);check('재접속으로 같은 캐릭터와 진행 상태 복원',before.playerId===after.playerId&&after.room!.phase==='playing');}
     if(!sawGate&&!s.gate.open&&s.gate.z-s.house.z<12){sawGate=true;await section('길을 여는 방법도 함께 고른다','갈고리로 장애물을 뜯고, 화약통으로 길을 뚫습니다.',22);await main.screenshot({path:'artifacts/gate.png'});}
     if(!sawCamp&&s.phase==='camp'){sawCamp=true;await section('숨 돌림과 공동 개조','실제 회수한 부품을 함께 쓰고, 다음 경로에 투표합니다.',17);await main.screenshot({path:'artifacts/camp.png'});check('장애물 돌파 후 정비와 경로 투표',true);}
     if(!sawSecond&&s.stage===2){sawSecond=true;await section('이번에는 물안개 운하','투표 결과가 다음 구역의 분위기와 진행에 반영됩니다.',20);await main.screenshot({path:'artifacts/canal.png'});}
@@ -79,6 +78,7 @@ try{
     await main.waitForTimeout(120);
   }
   await release(main);await release(friend);
+  const beforeReload=await snapshot(friend);await friend.reload({waitUntil:'domcontentloaded',timeout:60000});await friend.waitForFunction(()=>window.__review?.snapshot().room?.game!=null,{},{timeout:60000});const restored=await snapshot(friend);check('재접속으로 같은 캐릭터와 원정 상태 복원',beforeReload.playerId===restored.playerId&&restored.room!.code===beforeReload.room!.code);
   let final=(await snapshot(main)).room!,finalGame=final.game as EscapeState;
   if(!slice){check('2인 원정이 끝까지 종료됨',final.phase==='finished');check('정비와 경로 변경을 실제 플레이',sawCamp&&sawSecond);check('마지막 추격자와 실제 교전',sawBoss);}
   // The four-player check uses a separate real room and real UI; no game state is injected.

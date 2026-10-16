@@ -1,5 +1,5 @@
 export const PROTOCOL_VERSION = 1;
-export const PLAYER_COLORS = ['#c9f38e', '#a6c8ff', '#ffba9c', '#d5b5ff'];
+export const PLAYER_COLORS = ['#f5bd62', '#65d5cc', '#ae9bfa', '#f08d9c'];
 
 export interface PlayerInfo {
   id: string;

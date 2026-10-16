@@ -15,10 +15,10 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  review:
-    name: Build, test and record
+  checks:
+    name: Build and simulation
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 10
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -31,6 +31,30 @@ jobs:
         run: npm run build
       - name: Unit and room tests
         run: npm test
+      - uses: actions/upload-artifact@v4
+        with:
+          name: houseflight-build
+          retention-days: 14
+          path: |
+            dist
+            dist-server
+  review:
+    name: Real browser play and video
+    needs: checks
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - uses: actions/download-artifact@v4
+        with:
+          name: houseflight-build
+          path: .
       - name: Install cloud browser
         run: npx playwright install --with-deps chromium
       - name: Install Korean fonts and video encoder
