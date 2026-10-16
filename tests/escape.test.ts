@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {EscapeSession,escapeMode} from '../server/modes/escape.js';
-import {dist,type Enemy,type EscapeState} from '../shared/escape.js';
+import {onDeck,dist,type Enemy,type EscapeState} from '../shared/escape.js';
 import type {PlayerInfo} from '../shared/protocol.js';
 import {decide} from '../scripts/crew-agent.js';
 const players=(count=2):PlayerInfo[]=>Array.from({length:count},(_,i)=>({id:'crew-'+i,name:'친구 '+i,color:'#fff',connected:true,ready:true}));
@@ -95,4 +95,13 @@ test('production commands can complete seeded two, three and four-player expedit
 test('crew colors stay attached to their identities when lobby order changes',()=>{
  const roster=players(2);roster[0].color='#65d5cc';roster[1].color='#f08d9c';const g=new EscapeSession(roster,41);
  assert.equal(g.state.crew.find(p=>p.id===roster[0].id)!.color,'#65d5cc');assert.equal(g.state.crew.find(p=>p.id===roster[1].id)!.color,'#f08d9c');
+});
+
+test('throwing at the own position follows facing and stays finite',()=>{
+ const g=game(),p=g.state.crew[0],o=g.state.props[0];o.owner=p.id;p.carry=o.id;p.aimX=-.6;p.aimZ=.8;
+ assert.equal(g.command(p.id,{kind:'throw',x:p.x,z:p.z}).ok,true);assert.ok(o.vx<0&&o.vz>0);assert.ok(Number.isFinite(o.vx)&&Number.isFinite(o.vz));
+});
+test('a dropped item cannot end up inside the cabin wall',()=>{
+ const g=game(),p=g.state.crew[0],o=g.state.props[0];o.owner=p.id;p.carry=o.id;p.x=-2.2;p.z=0;p.aimX=1;p.aimZ=0;
+ assert.equal(g.command(p.id,{kind:'drop'}).ok,true);assert.equal(o.owner,null);assert.ok(o.x<=-2.2);assert.ok(onDeck(o,g.state.house));
 });

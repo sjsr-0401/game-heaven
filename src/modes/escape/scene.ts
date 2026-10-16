@@ -2,7 +2,7 @@ import * as T from 'three';
 import {crewIndex} from './ui-art.js';
 import {loadWorldArt,scenery,streetSign,artStatus} from './world-art.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
-import {onDeck,clamp,PROP_INFO,type EscapeState,type PropKind,type CrewActor,type Enemy,type EscapeEvent,type Vec} from '../../../shared/escape.js';
+import {crewSpeed,constrainCrew,onDeck,clamp,PROP_INFO,type EscapeState,type PropKind,type CrewActor,type Enemy,type EscapeEvent,type Vec} from '../../../shared/escape.js';
 
 export type GraphicsQuality='high'|'standard'|'economy';
 const requestedGraphics=new URLSearchParams(location.search).get('graphics');
@@ -273,7 +273,7 @@ export class EscapeScene {
   private helper=new URLSearchParams(location.search).has('review')&&new URLSearchParams(location.search).has('review-helper');private quality:GraphicsQuality=(localStorage.getItem('houseflight.graphics') as GraphicsQuality)||'standard';private artRevision=0;private renderer:T.WebGLRenderer;private scene=new T.Scene();private camera:T.OrthographicCamera;
   private light:T.DirectionalLight;private house=houseModel();private crew=new Map<string,WorkerRig>();private objects=new Map<string,T.Group>();private monsters=new Map<string,T.Group>();
   private hazards=new Map<string,T.Group>();private chunks=new Map<string,T.Group>();private effects:Effect[]=[];private gate=new T.Group();private exit=new T.Group();private storm=new T.Group();
-  private aim:Vec={x:0,z:8};private aimRing=ring(.7,'#fff0b2',.8);private trajectory=new T.Line(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#f2e2b4',dashSize:.35,gapSize:.25,transparent:true,opacity:.6}));
+  private aim:Vec={x:0,z:8};private hovered:{type:string;label:string;color:string}|null=null;private aimRing=ring(.7,'#fff0b2',.8);private trajectory=new T.Line(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#f2e2b4',dashSize:.35,gapSize:.25,transparent:true,opacity:.6}));
   private state:EscapeState|null=null;private received=0;private input={x:0,z:0};private ownId='';private seen=0;private lastHouse=0;
   private last=performance.now();private raf=0;private disposed=false;private observer:ResizeObserver;private viewZ=0;private shake=0;private elapsed=0;
   private eventListener:(e:EscapeEvent)=>void=()=>{};private nextShadow=0;private frameCount=0;private totalFrameMs=0;
@@ -324,15 +324,17 @@ export class EscapeScene {
     const v=new T.Vector3(x,y,z).project(this.camera);
     return{x:(v.x*.5+.5)*this.width,y:(-v.y*.5+.5)*this.height,visible:Math.abs(v.x)<1&&Math.abs(v.y)<1&&v.z<1};
   }
+  aimHint():{type:string;label:string;color:string}|null{return this.hovered;}
   world(clientX:number,clientY:number):Vec {
+    this.hovered=null;
     const rect=this.canvas.getBoundingClientRect(),point=new T.Vector2((clientX-rect.left)/rect.width*2-1,-(clientY-rect.top)/rect.height*2+1);
     this.raycaster.setFromCamera(point,this.camera);
-    const candidates=[...(this.gate.visible?[this.gate]:[]),...this.objects.values(),...this.monsters.values(),...[...this.crew.entries()].filter(([id])=>id!==this.ownId).map(([,rig])=>rig.root)];
-    const hits=this.raycaster.intersectObjects(candidates,true);if(hits.length){let root:T.Object3D|null=hits[0].object;while(root){if(root.userData.pick)return{...root.userData.pick};root=root.parent;}}
+    const candidates=[...(this.gate.visible?[this.gate]:[]),...[...this.objects.values()].filter(g=>!g.userData.owner&&!g.userData.flight&&!g.userData.pad),...this.monsters.values(),...[...this.crew.entries()].filter(([id])=>id!==this.ownId&&this.state?.crew.some(p=>p.id===id&&p.downUntil>this.state!.clock)).map(([,rig])=>rig.root)];
+    const hits=this.raycaster.intersectObjects(candidates,true);if(hits.length){let root:T.Object3D|null=hits[0].object;while(root){if(root.userData.pick){this.hovered=root.userData.hint??null;return{...root.userData.pick};}root=root.parent;}}
     this.raycaster.ray.intersectPlane(this.plane,this.vector);
     return{x:this.vector.x,z:this.vector.z};
   }
-  metrics():{fps:number;drawCalls:number;triangles:number;quality:GraphicsQuality;art:{loaded:number;total:number}}{return{fps:this.frameCount?Math.round(1000/(this.totalFrameMs/this.frameCount)):0,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,quality:this.quality,art:artStatus()};}
+  metrics():{fps:number;drawCalls:number;triangles:number;quality:GraphicsQuality;art:{loaded:number;total:number};frames:number;frameMs:number}{return{fps:this.frameCount?Math.round(1000/(this.totalFrameMs/this.frameCount)):0,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,quality:this.quality,art:artStatus(),frames:this.frameCount,frameMs:this.totalFrameMs};}
   private resize():void{
     this.width=Math.max(1,this.container.clientWidth);this.height=Math.max(1,this.container.clientHeight);
     this.renderer.setSize(this.width,this.height,false);const aspect=this.width/this.height,half=aspect<1.2?20:14.8;
@@ -385,35 +387,47 @@ export class EscapeScene {
     }
     for(const[key,g]of this.chunks)if(!wanted.has(key)){this.remove(g);this.chunks.delete(key);}
     if(s){
-      this.gate.visible=!s.gate.open&&s.stage<3;this.gate.position.z=s.gate.z;this.gate.userData.pick={x:0,z:s.gate.z};
+      this.gate.visible=!s.gate.open&&s.stage<3;this.gate.position.z=s.gate.z;this.gate.userData.pick={x:0,z:s.gate.z};this.gate.userData.hint={type:'gate',label:'장애물 · 좌클릭 공격',color:'#edc36b'};
       const alive=new Set(s.crew.filter(p=>!p.left).map(p=>p.id));
       for(const p of s.crew.filter(p=>!p.left)){
         let rig=this.crew.get(p.id);if(!rig){rig=worker(p.color,crewIndex(p.color));this.crew.set(p.id,rig);rig.root.position.set(p.x,0,p.z);this.scene.add(rig.root);}
         const own=p.id===this.ownId,lag=own?Math.min((now-this.received)/1000,.16):0;
-        const velocity=p.dodgeUntil>s.clock?12:p.carry?3.6:4.5;
-        const tx=p.x+(own?this.input.x*velocity*lag:0),tz=p.z+(own?this.input.z*velocity*lag:0);
+        const velocity=crewSpeed(s,p),predicted=constrainCrew({x:p.x+(own?this.input.x*velocity*lag:0),z:p.z+(own?this.input.z*velocity*lag:0)},s.house);
+        const tx=predicted.x,tz=predicted.z;
         rig.root.position.x+=(tx-rig.root.position.x)*Math.min(1,dt*(own?22:13));
         rig.root.position.z+=(tz-rig.root.position.z)*Math.min(1,dt*(own?22:13));
         const deck=onDeck(p,s.house),ground=deck?1.61:0,down=p.downUntil>s.clock;
         const targetY=ground+(p.dodgeUntil>s.clock?Math.sin(clamp((p.dodgeUntil-s.clock)/.23,0,1)*Math.PI)*.35:0);rig.root.position.y+=(targetY-rig.root.position.y)*Math.min(1,dt*17);
-        const angle=Math.atan2(p.aimX,p.aimZ);rig.root.rotation.y=angle;rig.body.rotation.z=down?Math.PI/2:Math.sin(p.walk*3)*.04+((rig.root.userData.hitUntil??0)>this.elapsed?Math.sin(clock*48)*.14:0);
+        const angle=own?Math.atan2(this.aim.x-rig.root.position.x,this.aim.z-rig.root.position.z):Math.atan2(p.aimX,p.aimZ);rig.root.rotation.y=angle;rig.body.rotation.z=down?Math.PI/2:Math.sin(p.walk*3)*.04+((rig.root.userData.hitUntil??0)>this.elapsed?Math.sin(clock*48)*.14:0);
         rig.body.position.y=down?-.45:Math.abs(Math.sin(p.walk*3))*.035;
         const movement=own&&Math.hypot(this.input.x,this.input.z)>.05?clock*15:p.walk*3.6;
         const moving=own?Math.hypot(this.input.x,this.input.z)>.05:Math.abs(p.walk-(rig.root.userData.walk??p.walk))>.001;
-        for(let i=0;i<2;i++){rig.legs[i].rotation.x=down?1.2:moving?Math.sin(movement+i*Math.PI)*.65:0;rig.arms[i].rotation.x=p.carry?-1.1:moving?Math.sin(movement+i*Math.PI)*.4:0;}
+        for(let i=0;i<2;i++){rig.legs[i].rotation.x=down?1.2:moving?Math.sin(movement+i*Math.PI)*.65:0;rig.arms[i].rotation.x=p.carry?-1.55:moving?Math.sin(movement+i*Math.PI)*.4:0;}
         if(s.clock-p.hookReady>-.48&&s.clock-p.hookReady<-.26)rig.arms[1].rotation.x=-1.6;
-        rig.root.userData.walk=p.walk;rig.root.userData.pick={x:p.x,z:p.z};
+        rig.root.userData.walk=p.walk;rig.root.userData.pick={x:p.x,z:p.z};rig.root.userData.hint={type:'crew',label:'동료 구조 · 좌클릭',color:'#9cddaa'};
         rig.root.visible=p.invulnerableUntil<=s.clock||Math.floor(clock*12)%2===0||down;
       }
       for(const[id,rig]of this.crew)if(!alive.has(id)){this.remove(rig.root);this.crew.delete(id);}
       const props=new Set(s.props.map(p=>p.id+(p.pad?'pad':'')));
       for(const p of s.props){const key=p.id+(p.pad?'pad':'');let g=this.objects.get(key);if(!g){g=propModel(p.kind,p.pad);this.objects.set(key,g);this.scene.add(g);g.position.set(p.x,0,p.z);}
         const owner=s.crew.find(c=>c.id===p.owner),rig=owner?this.crew.get(owner.id):null;
-        const targetX=rig?rig.root.position.x+owner!.aimX*.9:p.x,targetZ=rig?rig.root.position.z+owner!.aimZ*.9:p.z;
-        g.position.x+=(targetX-g.position.x)*Math.min(1,dt*(p.flight?35:18));g.position.z+=(targetZ-g.position.z)*Math.min(1,dt*(p.flight?35:18));
-        g.position.y=p.owner?(onDeck(owner!,s.house)?2.9:1.3):p.flight?.7+Math.sin((1-p.flight/p.flightMax)*Math.PI)*2.2:onDeck(p,s.house)?1.61:.03;
-        g.rotation.y+=p.flight?dt*11:p.owner?dt*.15:dt*.06;
-        g.rotation.z=p.flight?Math.sin(clock*15)*.25:0;g.userData.pick={x:p.x,z:p.z};
+        if(owner&&rig){
+          if(g.userData.owner!==p.owner){g.userData.grabAt=now;g.userData.grabFrom=g.position.clone();}
+          const t=clamp((now-g.userData.grabAt)/220,0,1),ease=t*t*(3-2*t),from=g.userData.grabFrom as T.Vector3;
+          const tx=rig.root.position.x+Math.sin(rig.root.rotation.y)*.94,tz=rig.root.position.z+Math.cos(rig.root.rotation.y)*.94,ty=rig.root.position.y+.95;
+          g.position.set(T.MathUtils.lerp(from.x,tx,ease),T.MathUtils.lerp(from.y,ty,ease)+Math.sin(t*Math.PI)*.45,T.MathUtils.lerp(from.z,tz,ease));
+          g.rotation.y=rig.root.rotation.y;g.rotation.z=0;
+        }else if(p.flight){
+          if(!g.userData.inFlight){const thrower=this.crew.get(p.by??'');g.userData.launchHeight=g.userData.owner?g.position.y:(thrower?.root.position.y??0)+.95;}
+          const t=1-p.flight/p.flightMax,launch=g.userData.launchHeight as number;
+          g.position.x+=(p.x-g.position.x)*(1-Math.exp(-dt*40));g.position.z+=(p.z-g.position.z)*(1-Math.exp(-dt*40));
+          g.position.y=launch*(1-t)+.12*t+Math.sin(t*Math.PI)*2.2;g.rotation.y+=dt*11;g.rotation.z=Math.sin(clock*15)*.25;
+        }else{
+          g.position.x+=(p.x-g.position.x)*(1-Math.exp(-dt*15));g.position.z+=(p.z-g.position.z)*(1-Math.exp(-dt*15));
+          g.position.y+=( (onDeck(p,s.house)?1.61:.03)-g.position.y)*Math.min(1,dt*18);g.rotation.y=2.55+(Number(p.id.slice(1))%3-1)*.17;g.rotation.z=0;
+        }
+        g.userData.owner=p.owner;g.userData.inFlight=!!p.flight;g.userData.flight=p.flight;g.userData.pad=p.pad;g.userData.pick={x:p.x,z:p.z};g.userData.hint={type:'prop',label:PROP_INFO[p.kind].name+' · 좌클릭 회수',color:PROP_INFO[p.kind].color};
+
       }
       for(const[key,g]of this.objects)if(!props.has(key)){this.remove(g);this.objects.delete(key);}
       const enemies=new Set(s.enemies.map(e=>e.id));
@@ -422,16 +436,16 @@ export class EscapeScene {
         g.position.y=e.kind==='devourer'?Math.sin(clock*12)*.035:Math.abs(Math.sin(clock*7+e.born))*.1;
         if(e.kind!=='devourer')g.rotation.y=Math.atan2(-e.x,s.house.z-e.z)+Math.PI;else g.rotation.y=0;
         g.rotation.z=e.stunnedUntil>s.clock?Math.sin(clock*35)*.09:Math.sin(clock*6+e.born)*.015;
-        g.scale.setScalar(e.kind==='devourer'&&e.exposedUntil>s.clock?1.02:1);g.userData.pick={x:e.x,z:e.z};if(g.userData.armor)g.userData.armor.visible=e.armor>0;if(g.userData.core){g.userData.core.visible=e.exposedUntil>s.clock;g.userData.core.rotation.z=clock*4;}
+        g.scale.setScalar(e.kind==='devourer'&&e.exposedUntil>s.clock?1.02:1);g.userData.pick={x:e.x,z:e.z};g.userData.hint={type:'enemy',label:(e.kind==='devourer'?'고철 포식자':e.kind==='rammer'?'돌진 수거기':e.kind==='snatcher'?'흡착 줍개':'고철 수거기')+' · 좌클릭 공격',color:'#ed916b'};if(g.userData.armor)g.userData.armor.visible=e.armor>0;if(g.userData.core){g.userData.core.visible=e.exposedUntil>s.clock;g.userData.core.rotation.z=clock*4;}
       }
       for(const[key,g]of this.monsters)if(!enemies.has(key)){this.remove(g);this.monsters.delete(key);}
       const hazards=new Set(s.hazards.map(h=>h.id));
       for(const h of s.hazards){let g=this.hazards.get(h.id);if(!g){g=new T.Group();
-        const r=ring(h.radius,'#ff7659',.9);g.add(r);
-        const disc=new T.Mesh(geometry('disc',()=>new T.CircleGeometry(1,48)),new T.MeshBasicMaterial({color:'#f67650',transparent:true,opacity:.17,depthWrite:false,side:T.DoubleSide}));disc.rotation.x=-Math.PI/2;disc.scale.setScalar(h.radius);g.add(disc);
+        const r=ring(h.radius,'#ff7659',.9);(r.material as T.Material).depthTest=false;r.renderOrder=3;g.add(r);
+        const disc=new T.Mesh(geometry('disc',()=>new T.CircleGeometry(1,48)),new T.MeshBasicMaterial({color:'#f67650',transparent:true,opacity:.13,depthWrite:false,depthTest:false,side:T.DoubleSide}));disc.rotation.x=-Math.PI/2;disc.scale.setScalar(h.radius);disc.renderOrder=2;g.add(disc);
         if(h.kind==='charge'){const line=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(0,0,0),new T.Vector3(h.toX-h.x,0,h.toZ-h.z)]),new T.LineBasicMaterial({color:'#ffb27c'}));g.add(line);}
         this.scene.add(g);this.hazards.set(h.id,g);
-      }g.position.set(h.x,.1,h.z);g.scale.setScalar(1+Math.sin(clock*18)*.025);}
+      }g.position.set(h.x,onDeck(h,s.house)?1.69:.1,h.z);g.scale.setScalar(1+Math.sin(clock*18)*.025);}
       for(const[key,g]of this.hazards)if(!hazards.has(key)){this.remove(g);this.hazards.delete(key);}
     }else{
       this.gate.visible=false;
@@ -446,7 +460,7 @@ export class EscapeScene {
       }
     }
     for(const fx of this.effects){
-      fx.life-=dt;const t=1-fx.life/fx.max;
+      fx.life-=Math.min(rawMs/1000,.35);const t=clamp(1-fx.life/fx.max,0,1);
       if(fx.kind==='burst'){
         const burst=fx.root as T.InstancedMesh;
         (burst.userData.particles as {position:T.Vector3;velocity:T.Vector3;radius:number}[]).forEach((p,i)=>{p.position.addScaledVector(p.velocity,dt);p.velocity.y-=8*dt;this.dummy.position.copy(p.position);this.dummy.scale.setScalar(p.radius*Math.max(.01,1-t));this.dummy.updateMatrix();burst.setMatrixAt(i,this.dummy.matrix);});burst.instanceMatrix.needsUpdate=true;
@@ -463,8 +477,12 @@ export class EscapeScene {
     const own=s?.crew.find(p=>p.id===this.ownId),focusX=own?clamp(own.x*.12,-1.5,1.5):0;
     this.camera.position.set(19+focusX+jitter,25,this.viewZ-25+jitter);this.camera.lookAt(focusX,.4,this.viewZ+4);
     this.light.position.set(-14,30,this.viewZ-12);this.light.target.position.set(0,0,this.viewZ+3);
-    this.aimRing.visible=!!own&&s?.phase==='travel';this.aimRing.position.set(this.aim.x,.09,this.aim.z);
-    this.trajectory.visible=!!own?.carry&&s?.phase==='travel';if(this.trajectory.visible&&own){const points=[];const d=Math.hypot(this.aim.x-own.x,this.aim.z-own.z),ratio=Math.min(1,18/Math.max(.1,d));for(let i=0;i<=20;i++){const t=i/20;points.push(new T.Vector3(own.x+(this.aim.x-own.x)*ratio*t,1.1+Math.sin(t*Math.PI)*2,own.z+(this.aim.z-own.z)*ratio*t));}this.trajectory.geometry.dispose();this.trajectory.geometry=new T.BufferGeometry().setFromPoints(points);this.trajectory.computeLineDistances();}
+    this.aimRing.visible=!!own&&s?.phase==='travel';this.aimRing.position.set(this.aim.x,s&&this.hovered?.type!=='enemy'&&this.hovered?.type!=='gate'&&onDeck(this.aim,s.house)?1.69:.09,this.aim.z);(this.aimRing.material as T.MeshBasicMaterial).color.set(this.hovered?.color??'#fff0b2');
+    this.trajectory.visible=!!own?.carry&&s?.phase==='travel';if(this.trajectory.visible&&own){
+      const points:T.Vector3[]=[],rig=this.crew.get(own.id),dx=this.aim.x-own.x,dz=this.aim.z-own.z,d=Math.hypot(dx,dz),length=clamp(d,3,18),ux=d>.01?dx/d:own.aimX,uz=d>.01?dz/d:own.aimZ,launch=(rig?.root.position.y??0)+1.45;
+      for(let i=0;i<=20;i++){const t=i/20;points.push(new T.Vector3(own.x+ux*length*t,launch*(1-t)+.62*t+Math.sin(t*Math.PI)*2.2,own.z+uz*length*t));}
+      this.trajectory.geometry.dispose();this.trajectory.geometry=new T.BufferGeometry().setFromPoints(points);this.trajectory.computeLineDistances();
+    }
     if(now>this.nextShadow){this.renderer.shadowMap.needsUpdate=true;this.nextShadow=now+100;}
     this.renderer.render(this.scene,this.camera);this.lastHouse=z;this.raf=requestAnimationFrame(this.render);
   };

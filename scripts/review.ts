@@ -1,6 +1,6 @@
 import {chromium,type Page,type BrowserContext} from 'playwright';
 import {mkdir,writeFile,copyFile} from 'node:fs/promises';
-import {execFileSync} from 'node:child_process';
+import {execFileSync,spawnSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {decide} from './crew-agent.js';
 import {onDeck,type EscapeState} from '../shared/escape.js';
@@ -67,7 +67,7 @@ try{
   const friend=await newPage('민트 우비');await friend.locator('#join-code').fill(code.toLowerCase());await friend.locator('#join-room').click();await friend.locator('#ready-start').waitFor();
   await main.screenshot({path:'artifacts/lobby.png'});check('두 브라우저가 같은 방에 합류',(await snapshot(friend)).room!.code===code);
   await friend.locator('#ready-start').click();await main.waitForFunction(()=>document.querySelector<HTMLButtonElement>('#ready-start')?.disabled===false);
-  await section('한 집, 두 명의 도주 팀','실제 두 브라우저가 같은 서버의 방에 합류하고 출발합니다.',22);
+  await section('2인 원정 시작','실제 두 브라우저가 같은 서버의 방에 합류하고 출발합니다.',22);
   await main.locator('#ready-start').click();await main.locator('.world canvas').waitFor();await main.waitForTimeout(1000);
   check('실제 2인 원정 시작',(await snapshot(main)).room!.phase==='playing');
   check('두 전장과 HUD가 화면 전체에 올바르게 배치됨',await playfieldFits(main)&&await playfieldFits(friend));
@@ -92,14 +92,14 @@ try{
     const state=(await snapshot(main)).room!,s=state.game as EscapeState;
     if(s.clock-loggedAt>20){loggedAt=s.clock;console.log('PLAY_PROGRESS '+JSON.stringify({clock:Math.round(s.clock),stage:s.stage,phase:s.phase,distance:Math.round(s.house.z),hull:Math.round(s.house.hp),crew:s.crew.map(p=>({name:p.name,...p.stats})),metrics:await main.evaluate(()=>window.__review!.metrics())}));}
     if(!savedPoster&&s.clock>12){savedPoster=true;await main.screenshot({path:'artifacts/poster.png'});await main.screenshot({path:'artifacts/combat.png'});}
-    if(!sawCarry&&s.crew.some(p=>p.carry)){sawCarry=true;await section('끌어오고, 던지고','갈고리로 회수한 물체를 실제 투사체로 던집니다. 피해는 서버에서 판정합니다.',22);}
+    if(!sawCarry&&s.crew.some(p=>p.carry)){sawCarry=true;await section('갈고리 회수와 투척','갈고리로 회수한 물체를 실제 투사체로 던집니다. 피해는 서버에서 판정합니다.',22);}
     if(!sawThrow&&s.crew.some(p=>p.stats.throws>0)){sawThrow=true;check('실제 물체 회수와 투척',true);}
-    if(!sawGate&&!s.gate.open&&s.gate.z-s.house.z<12){sawGate=true;await section('길을 여는 방법도 함께 고른다','갈고리로 장애물을 뜯고, 화약통으로 길을 뚫습니다.',22);await main.screenshot({path:'artifacts/gate.png'});}
-    if(!sawCamp&&s.phase==='camp'){sawCamp=true;await section('숨 돌림과 공동 개조','실제 회수한 부품을 함께 쓰고, 다음 경로에 투표합니다.',17);await main.screenshot({path:'artifacts/camp.png'});check('장애물 돌파 후 정비와 경로 투표',true);}
-    if(!sawSecond&&s.stage===2){sawSecond=true;await section('이번에는 물안개 운하','투표 결과가 다음 구역의 분위기와 진행에 반영됩니다.',20);await main.screenshot({path:'artifacts/canal.png'});}
+    if(!sawGate&&!s.gate.open&&s.gate.z-s.house.z<12){sawGate=true;await section('첫 장애물 돌파','갈고리로 장애물을 뜯고, 화약통으로 길을 뚫습니다.',22);await main.screenshot({path:'artifacts/gate.png'});}
+    if(!sawCamp&&s.phase==='camp'){sawCamp=true;await section('집 개조와 경로 선택','실제 회수한 부품을 함께 쓰고, 다음 경로에 투표합니다.',17);await main.screenshot({path:'artifacts/camp.png'});check('장애물 돌파 후 정비와 경로 투표',true);}
+    if(!sawSecond&&s.stage===2){sawSecond=true;await section('경로 투표 결과: 운하','투표 결과가 다음 구역의 분위기와 진행에 반영됩니다.',20);await main.screenshot({path:'artifacts/canal.png'});}
     if(!sawBoss&&s.enemies.some(e=>e.kind==='devourer')){sawBoss=true;await section('마지막 추격자, 고철 포식자','위험 예고를 피하고, 열린 흡입구에 물체를 던집니다.',35);await main.screenshot({path:'artifacts/boss.png'});}
     if(state.phase==='finished'){
-      await release(main);await release(friend);await section(s.phase==='won'?'함께 도착한 집':'실패도 다음 원정의 경험','실제 서버 판정으로 끝난 한 판의 결과입니다.',9);
+      await release(main);await release(friend);await section(s.phase==='won'?'탈출 성공':'실패도 다음 원정의 경험','실제 서버 판정으로 끝난 한 판의 결과입니다.',9);
       await main.waitForTimeout(1800);await main.screenshot({path:'artifacts/results.png'});check('한 판이 실제 결과 화면까지 진행',true);break;
     }
     await main.waitForTimeout(120);
@@ -120,7 +120,7 @@ try{
   const extra=await newPage('다섯 번째');await extra.locator('#join-code').fill(fourCode);await extra.locator('#join-room').click();await extra.waitForTimeout(500);check('다섯 번째 참가자 차단',(await snapshot(extra)).room===null);await extra.context().close();
   for(const page of [friend,third,fourth])await page.locator('#ready-start').click();
   await main.waitForFunction(()=>document.querySelector<HTMLButtonElement>('#ready-start')?.disabled===false);
-  await section('이번에는 네 명이 함께','네 개의 독립 브라우저가 같은 집과 물체를 공유하는 실제 4인 플레이입니다.',30);
+  await section('4인 동시 플레이','네 개의 독립 브라우저가 같은 집과 물체를 공유하는 실제 4인 플레이입니다.',30);
   await main.locator('#ready-start').click();await main.locator('.world canvas').waitFor();
   check('네 전장의 크기와 HUD 배치 정상',(await Promise.all([main,friend,third,fourth].map(playfieldFits))).every(Boolean));
   const fourStart=Date.now();while(Date.now()-fourStart<32000){await Promise.all([main,friend,third,fourth].map((p,i)=>agent(p,i)));await main.waitForTimeout(140);}
@@ -129,7 +129,7 @@ try{
   check('4인 위치·집·아이템이 같은 서버 상태로 동기화',fourStates.every(p=>(p.room!.game as EscapeState).crew.length===4&&Math.abs((p.room!.game as EscapeState).house.z-(fourStates[0].room!.game as EscapeState).house.z)<1));
   check('네 명 모두 실제 갈고리 조작',((fourStates[0].room!.game as EscapeState).crew.every(p=>p.stats.hooks>0)));
   const metrics=await main.evaluate(()=>window.__review!.metrics());
-  await caption('같이 돌아갈 집이 있으니까.','2–4인 협동 액션 · 실제 실행과 조작으로 녹화한 영상');await main.waitForTimeout(2500);
+  await caption('집째로 도망','2–4인 협동 액션 · 실제 실행과 조작으로 녹화한 영상');await main.waitForTimeout(2500);
   const audioStatus=await main.evaluate(()=>window.__review!.audioStatus());check('모든 재질별 효과음 파일 로드·디코딩',audioStatus.loaded===audioStatus.total&&audioStatus.total>0);
   audio=await main.evaluate(()=>window.__review!.audio());check('마이크 없이 실제 게임 효과음 출력 녹음',!!audio?.base64);
   const fourPlayerIds=(fourStates[0].room!.game as EscapeState).crew.map(p=>p.id);
@@ -152,9 +152,10 @@ try{
   filters.push(merged.map((_,i)=>'[v'+i+']'+(audio?'[a'+i+']':'')).join('')+'concat=n='+merged.length+':v=1:a='+(audio?1:0)+'[v]'+(audio?'[a]':''));
   execFileSync(ffmpeg,['-y','-i',full,'-filter_complex',filters.join(';'),'-map','[v]',...(audio?['-map','[a]']:[]),'-c:v','libx264','-preset','fast','-crf','23','-pix_fmt','yuv420p',...(audio?['-c:a','aac','-b:a','96k']:[]),'-movflags','+faststart',target],{stdio:'pipe',timeout:300000});
   execFileSync(ffmpeg,['-v','error','-i',target,'-f','null','-'],{stdio:'pipe',timeout:180000});check('최종 영상 전체 디코딩',true);
-  if(audio){execFileSync(ffmpeg,['-v','error','-i',target,'-map','0:a:0','-f','null','-'],{stdio:'pipe',timeout:60000});check('실제 게임 음성 트랙 디코딩',true);}
+  let audioPeakDb:number|null=null;
+  if(audio){execFileSync(ffmpeg,['-v','error','-i',target,'-map','0:a:0','-f','null','-'],{stdio:'pipe',timeout:60000});check('실제 게임 음성 트랙 디코딩',true);const volume=spawnSync(ffmpeg,['-hide_banner','-i',target,'-vn','-af','volumedetect','-f','null','-'],{encoding:'utf8',timeout:60000});audioPeakDb=Number(volume.stderr.match(/max_volume: (-?\d+(?:\.\d+)?)/)?.[1]);check('녹음된 실제 소리가 무음이 아님',volume.status===0&&Number.isFinite(audioPeakDb)&&audioPeakDb> -50);}
   execFileSync(ffmpeg,['-y','-i',target,'-vf','fps=1/20,scale=480:-1,tile=3x3','-frames:v','1','artifacts/combat-sheet.jpg'],{stdio:'pipe',timeout:60000});
-  const metadata={title:'집째로 도망',version:'1.0.0',sourceCommit,repository:'sjsr-0401/game-heaven',fullRun:final.phase==='finished',realGameAudio:!!audio,sourceDurationSeconds:fullDuration,checks,chapters,segments:merged,metrics,twoPlayerMetrics,summary:{phase:finalGame.phase,seconds:finalGame.clock,distance:finalGame.distance,bossDefeated:finalGame.bossDefeated,players:finalGame.crew.length,contributions:finalGame.crew.map(p=>({name:p.name,...p.stats}))},limitations:['클라우드 브라우저의 실제 키보드·마우스 조작입니다. 사람의 재미 평가와 실제 가정용 인터넷 지연 검증은 별도입니다.','하이라이트는 실제 속도이며 구간 사이를 편집했습니다. 원본 전체 영상도 같은 클라우드 산출물에 포함합니다.']};
+  const metadata={title:'집째로 도망',version:'1.0.0',sourceCommit,repository:'sjsr-0401/game-heaven',fullRun:final.phase==='finished',realGameAudio:!!audio,audioPeakDb,sourceDurationSeconds:fullDuration,checks,chapters,segments:merged,metrics,twoPlayerMetrics,summary:{phase:finalGame.phase,seconds:finalGame.clock,distance:finalGame.distance,bossDefeated:finalGame.bossDefeated,players:finalGame.crew.length,contributions:finalGame.crew.map(p=>({name:p.name,...p.stats}))},limitations:['클라우드 브라우저의 실제 키보드·마우스 조작입니다. 사람의 재미 평가와 실제 가정용 인터넷 지연 검증은 별도입니다.','하이라이트는 실제 속도이며 구간 사이를 편집했습니다. 원본 전체 영상도 같은 클라우드 산출물에 포함합니다.']};
   await writeFile('artifacts/verification.json',JSON.stringify(metadata,null,2));console.log('FINAL_REVIEW '+JSON.stringify(metadata));
 }catch(error){
   for(let i=0;i<Math.min(pages.length,4);i++)try{await pages[i].screenshot({path:'artifacts/failure-'+i+'.png'});}catch{}

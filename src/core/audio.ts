@@ -37,13 +37,13 @@ export function setSoundEnabled(value:boolean):void{
   enabled=value;
   if(!value){if(master&&audio)master.gain.setTargetAtTime(0,audio.currentTime,.025);return;}
   if(!audio){
-    audio=new AudioContext();loadSoundKit(audio);master=audio.createGain();master.gain.value=.6;master.connect(audio.destination);
+    audio=new AudioContext();loadSoundKit(audio);master=audio.createGain();master.gain.value=.6;const limiter=audio.createDynamicsCompressor();limiter.threshold.value=-10;limiter.knee.value=8;limiter.ratio.value=6;limiter.attack.value=.004;limiter.release.value=.16;master.connect(limiter);limiter.connect(audio.destination);
     noise=audio.createBuffer(1,Math.ceil(audio.sampleRate*.7),audio.sampleRate);
     const data=noise.getChannelData(0);let seed=19723;
     for(let i=0;i<data.length;i++){seed=(Math.imul(seed,1664525)+1013904223)|0;data[i]=(seed>>>0)/2147483648-1;}
     // Only the synthesized game bus is captured; no microphone or other app audio is requested.
     if(new URLSearchParams(location.search).get('record')==='1'&&typeof MediaRecorder!=='undefined'){
-      const destination=audio.createMediaStreamDestination();master.connect(destination);
+      const destination=audio.createMediaStreamDestination();limiter.connect(destination);
       const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
       recorder=new MediaRecorder(destination.stream,{mimeType:mime});
       recorder.ondataavailable=event=>{if(event.data.size)chunks.push(event.data);};
@@ -111,7 +111,7 @@ export function playEscapeEvent(e:EscapeEvent):void {
  if(e.type==='explode'){sample(e.prop==='battery'?'tin':'armor',.3*gain,.8,pan);impact(.42,.2,e.prop==='battery'?1900:750);pulse(80,24,.4,.1,'sine');}
  if(e.type==='kill'){sample('tin',.17*gain,.86,pan);}
  if(e.type==='install'){sample(e.prop==='scrap'?'plank1':'select',.22*gain,rate,pan);}
- if(e.type==='repair'||e.type==='rescue'){sample('confirm',.2*gain,1,pan);pulse(330,440,.17,.012,'sine',.12);}
+ if(e.type==='repair'||e.type==='rescue'){sample(e.type==='rescue'&&!e.by?'select':'confirm',.2*gain,1,pan);if(e.by||e.type==='repair')pulse(330,440,.17,.012,'sine',.12);}
  if(e.type==='warning'){pulse(180,150,.2,.025,'triangle');pulse(180,150,.2,.022,'triangle',.28);}
  if(e.type==='camp'||e.type==='upgrade'){sample('confirm',.19);}
  if(e.type==='boss'){sample('armor',.28,.7,pan);impact(.6,.09,600);pulse(65,34,.65,.05,'sine');}

@@ -88,7 +88,7 @@ $('graphics-toggle').onclick=()=>{quality=qualities[(qualities.indexOf(quality)+
 const help=$<HTMLDialogElement>('help-dialog');$('help').onclick=()=>help.showModal();help.querySelector('.close-dialog')!.addEventListener('click',()=>help.close());help.querySelector('.close-help')!.addEventListener('click',()=>help.close());
 help.addEventListener('click',e=>{if(e.target===help)help.close();});
 entry();
-declare global {interface Window {__review?:{snapshot:()=>{room:RoomSnapshot|null;playerId:string};project:(x:number,z:number,y?:number)=>{x:number;y:number;visible:boolean}|null;metrics:()=>{fps:number;drawCalls:number;triangles:number}|null;audio:typeof finishAudioRecording;audioStatus:typeof gameAudioStatus;caption:(title:string,description:string)=>void}}}
+declare global {interface Window {__review?:{snapshot:()=>{room:RoomSnapshot|null;playerId:string};project:(x:number,z:number,y?:number)=>{x:number;y:number;visible:boolean}|null;metrics:()=>ReturnType<EscapeScene['metrics']>|null;audio:typeof finishAudioRecording;audioStatus:typeof gameAudioStatus;caption:(title:string,description:string)=>void}}}
 if(new URLSearchParams(location.search).has('review'))window.__review={
   snapshot:()=>({room:room?JSON.parse(JSON.stringify(room)):null,playerId}),
   project:(x,z,y)=>{if(!view)return null;if(y===undefined){const state=room?.game as EscapeState|undefined;const deck=state&&Math.abs(x)<4.6&&Math.abs(z-state.house.z)<5.6;y=(deck?1.61:0)+.8;}const point=view.scene.project(x,z,y),rect=view.scene.canvas.getBoundingClientRect();return{x:point.x+rect.left,y:point.y+rect.top,visible:point.visible};},

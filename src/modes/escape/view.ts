@@ -21,7 +21,7 @@ export class EscapeView implements ClientMode {
       +'<div class="controls-hud"><div class="key-guide"><span><kbd>W A S D</kbd> 이동</span><span><kbd>좌클릭 유지</kbd> 갈고리</span><span><kbd>우클릭</kbd> 투척 / 밀치기</span><span><kbd>Space</kbd> 회피</span></div>'
       +'<div class="carried-item" id="held-item"><span class="item-orb">'+toolIcon('hand')+'</span><div><small>빈손</small><strong>좌클릭으로 물건을 회수하세요</strong></div></div>'
       +'<div class="action-guide"><button id="install-action"><kbd>E</kbd><span>장착 / 설치</span></button><button id="drop-action"><kbd>Q</kbd><span>내려놓기</span></button><button id="dodge-action"><kbd>Space</kbd><span id="dodge-status">회피 준비</span></button></div></div>'
-      +'<div class="camp-overlay" hidden></div><div class="results-overlay" hidden></div><div class="aim-reticle" hidden></div></div>';
+      +'<div class="camp-overlay" hidden></div><div class="results-overlay" hidden></div><div class="aim-reticle" hidden></div><div class="target-hint" hidden></div></div>';
     setGameAudioPlayer(context.playerId);
     const root=context.element;this.labels=root.querySelector('.world-labels')!;this.floats=root.querySelector('.float-layer')!;this.heldLabel=root.querySelector('#held-item')!;
     this.scene=new EscapeScene(root.querySelector('.world')!);this.scene.setOwnId(context.playerId);this.scene.onEvent(e=>this.onEvent(e));
@@ -40,7 +40,7 @@ export class EscapeView implements ClientMode {
     window.addEventListener('blur',()=>{this.keys.clear();this.pressed=false;this.sendMotion();},opts);
     const point=(e:PointerEvent)=>{this.pointer={x:e.clientX,y:e.clientY};this.updateAim();};
     this.scene.canvas.addEventListener('pointermove',point,opts);
-    this.scene.canvas.addEventListener('pointerleave',()=>{this.pointer=null;this.pressed=false;root.querySelector<HTMLElement>('.aim-reticle')!.hidden=true;},opts);
+    this.scene.canvas.addEventListener('pointerleave',()=>{this.pointer=null;this.pressed=false;root.querySelector<HTMLElement>('.aim-reticle')!.hidden=true;root.querySelector<HTMLElement>('.target-hint')!.hidden=true;},opts);
     this.scene.canvas.addEventListener('pointerdown',e=>{
       point(e);this.scene.canvas.focus();if(e.button===0){this.pressed=true;this.hook();}if(e.button===2)context.command({kind:'throw',...this.mouse});e.preventDefault();
     },opts);
@@ -63,6 +63,10 @@ export class EscapeView implements ClientMode {
     this.mouse=this.scene.world(this.pointer.x,this.pointer.y);this.scene.setAim(this.mouse);
     const reticle=this.context.element.querySelector<HTMLElement>('.aim-reticle')!,rect=this.scene.canvas.getBoundingClientRect();
     reticle.hidden=false;reticle.style.left=(this.pointer.x-rect.left)+'px';reticle.style.top=(this.pointer.y-rect.top)+'px';
+    const target=this.scene.aimHint(),hint=this.context.element.querySelector<HTMLElement>('.target-hint')!,own=this.state?.crew.find(p=>p.id===this.context.playerId);
+    hint.hidden=!target||this.state?.phase!=='travel'||!!own?.carry;
+    if(!hint.hidden&&target){hint.textContent=target.label;hint.style.left=Math.min(rect.width-205,Math.max(10,this.pointer.x-rect.left+18))+'px';hint.style.top=Math.min(rect.height-126,Math.max(72,this.pointer.y-rect.top+18))+'px';hint.style.borderColor=target.color;}
+
   }
   private hook():void {if(!this.state||this.state.phase!=='travel'){this.pressed=false;return;}this.updateAim();this.context.command({kind:'hook',...this.mouse});this.nextHook=performance.now()+520;}
   private motion():{x:number;z:number} {
@@ -139,8 +143,8 @@ export class EscapeView implements ClientMode {
     if(e.type==='hit'&&e.value){const node=document.createElement('b');node.className='damage-float '+(e.text==='crew'||e.text==='house'?'hurt':'');node.textContent=String(e.value);node.dataset.x=String(e.x+(e.id%3-1)*.25);node.dataset.z=String(e.z);node.dataset.born=String(performance.now());this.floats.append(node);if(this.floats.children.length>35)this.floats.firstElementChild?.remove();}
     if(['rescue','boss','camp','win','lose','upgrade'].includes(e.type)){
       const banner=this.context.element.querySelector<HTMLElement>('.event-announcement')!;banner.hidden=false;banner.dataset.until=String(performance.now()+2500);
-      banner.querySelector('span')!.textContent=e.type==='rescue'?'NICE SAVE!':e.type==='upgrade'?'UPGRADED':'HOUSEFLIGHT';
-      banner.querySelector('strong')!.textContent=e.type==='rescue'?'동료 구조!':e.type==='upgrade'?UPGRADE_INFO[e.text as UpgradeId]?.name??'함께 더 강하게':e.text??'';
+      banner.querySelector('span')!.textContent=e.type==='rescue'?(e.by?'동료 구조':'긴급 복귀'):e.type==='upgrade'?'개조 완료':e.type==='boss'?(e.value?'추격자 출현':'길이 열렸다'):e.type==='camp'?'구역 이동':e.type==='win'?'탈출 성공':'원정 종료';
+      banner.querySelector('strong')!.textContent=e.type==='rescue'?(e.by?'동료를 끌어올렸다!':'집 내구도 8을 써서 복귀'):e.type==='upgrade'?UPGRADE_INFO[e.text as UpgradeId]?.name??'함께 더 강하게':e.text??'';
       setTimeout(()=>{if(Number(banner.dataset.until)<performance.now())banner.hidden=true;},2600);
     }
   }

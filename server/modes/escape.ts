@@ -1,6 +1,6 @@
 import type {PlayerInfo} from '../../shared/protocol.js';
 import {isRecord} from '../../shared/protocol.js';
-import {WORLD_HALF_WIDTH,ESCAPE_ID,ESCAPE_VERSION,STAGE_ENDS,PROP_INFO,CREW_COLORS,clamp,dist,distanceToSegment,onDeck,upgradeCost,type EscapeState,type CrewActor,type Prop,type PropKind,type Enemy,type UpgradeId,type EscapeEvent,type Vec} from '../../shared/escape.js';
+import {crewSpeed,constrainCrew,WORLD_HALF_WIDTH,ESCAPE_ID,ESCAPE_VERSION,STAGE_ENDS,PROP_INFO,CREW_COLORS,clamp,dist,distanceToSegment,onDeck,upgradeCost,type EscapeState,type CrewActor,type Prop,type PropKind,type Enemy,type UpgradeId,type EscapeEvent,type Vec} from '../../shared/escape.js';
 import type {CommandResult,GameMode,ModeSession} from './types.js';
 interface Motion {x:number;z:number;at:number}
 const kinds:PropKind[]=['scrap','battery','barrel','repair','spring'];
@@ -36,7 +36,8 @@ export class EscapeSession implements ModeSession {
   private actor(id:string):CrewActor|undefined{return this.state.crew.find(p=>p.id===id&&!p.left);}
   private dropped(p:CrewActor):void {
     const object=this.state.props.find(o=>o.id===p.carry);
-    if(object){object.owner=null;object.x=p.x+1;object.z=p.z;object.by=null;}
+    if(object){object.owner=null;object.x=clamp(p.x+p.aimX*1.1,-WORLD_HALF_WIDTH,WORLD_HALF_WIDTH);object.z=p.z+p.aimZ*1.1;object.by=null;
+      const rz=object.z-this.state.house.z;if(Math.abs(object.x)<2.5&&rz>-2.9&&rz<2.5)object.x=p.x<0?-3:3;}
     p.carry=null;
   }
   command(id:string,raw:unknown):CommandResult {
@@ -112,7 +113,7 @@ export class EscapeSession implements ModeSession {
       p.throwReady=s.clock+.42;
       const o=s.props.find(o=>o.id===p.carry&&o.owner===id);
       if(!o){for(const e of s.enemies)if(e.kind!=='devourer'&&dist(e,p)<3){this.damage(e,14,id);e.stunnedUntil=s.clock+.65;const d=Math.max(.1,dist(e,p));e.x+=(e.x-p.x)/d*2;e.z+=(e.z-p.z)/d*2;}return{ok:true};}
-      const distance=clamp(Math.hypot(raw.x-p.x,raw.z-p.z),3,18),angle=Math.atan2(raw.z-p.z,raw.x-p.x);
+      const distance=clamp(Math.hypot(raw.x-p.x,raw.z-p.z),3,18),angle=Math.hypot(raw.x-p.x,raw.z-p.z)<.1?Math.atan2(p.aimZ,p.aimX):Math.atan2(raw.z-p.z,raw.x-p.x);
       p.aimX=Math.cos(angle);p.aimZ=Math.sin(angle);o.x=p.x+p.aimX*.9;o.z=p.z+p.aimZ*.9;o.owner=null;o.by=id;o.vx=Math.cos(angle)*distance/.64;o.vz=Math.sin(angle)*distance/.64;
       o.flight=o.flightMax=.64;o.ttl=s.clock+4;p.carry=null;p.stats.throws++;
       this.event('throw',p,{by:id,toX:raw.x,toZ:raw.z,prop:o.kind});return{ok:true};
@@ -219,15 +220,8 @@ export class EscapeSession implements ModeSession {
       const input=this.motions.get(p.id),fresh=input&&s.clock-input.at<.32;
       let x=fresh?input.x:0,z=fresh?input.z:0;
       if(p.dodgeUntil>s.clock){const len=Math.hypot(x,z);if(len<.1){x=p.aimX;z=p.aimZ;}}
-      const heavy=p.carry?s.props.find(o=>o.id===p.carry)?.kind==='scrap':false;
-      const velocity=p.dodgeUntil>s.clock?12:4.5*(heavy?.77+s.upgrades.reel*.06:1);
-      p.x=clamp(p.x+x*velocity*dt,-WORLD_HALF_WIDTH,WORLD_HALF_WIDTH);p.z=clamp(p.z+z*velocity*dt,s.house.z-22,s.house.z+27);
-      if(Math.hypot(x,z)>.1)p.walk+=velocity*dt;
-      const rz=p.z-s.house.z;
-      if(Math.abs(p.x)<2.2&&rz>-2.65&&rz<2.2){
-        const left=2.2-Math.abs(p.x),front=2.2-rz,back=rz+2.65;
-        if(left<Math.min(front,back))p.x=p.x<0?-2.2:2.2;else p.z=s.house.z+(front<back?2.2:-2.65);
-      }
+      const velocity=crewSpeed(s,p),next=constrainCrew({x:p.x+x*velocity*dt,z:p.z+z*velocity*dt},s.house);
+      p.x=next.x;p.z=next.z;if(Math.hypot(x,z)>.1)p.walk+=velocity*dt;
       if(p.z<s.stormZ+2&&active)this.hurt(p,15);
       for(const pad of s.props)if(pad.pad&&dist(p,pad)<1&&p.dodgeUntil<=s.clock&&p.dodgeReady<=s.clock){
         p.dodgeUntil=s.clock+.5;p.dodgeReady=s.clock+1.5;p.invulnerableUntil=s.clock+.55;
