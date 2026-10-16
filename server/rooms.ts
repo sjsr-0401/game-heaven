@@ -96,7 +96,7 @@ export class RoomHub {
       member.lastRequestId = raw.requestId;
       const result = room.game.command(member.id, raw.action);
       peer.send({ type: 'ack', requestId: raw.requestId, ...result });
-      if (result.ok) this.broadcast(room);
+      if (result.ok && result.broadcast !== false) this.broadcast(room);
       return;
     }
     this.error(peer, '지원하지 않는 메시지입니다.');

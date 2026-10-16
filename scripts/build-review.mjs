@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 
 const metadata = JSON.parse(await readFile('artifacts/verification.json', 'utf8'));
-const mp4 = await readFile('artifacts/nightwatch-preview.mp4');
+const mp4 = await readFile('artifacts/houseflight-preview.mp4');
 const poster = await readFile('artifacts/poster.png');
 const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const template = await readFile('scripts/review-template.html', 'utf8');
@@ -42,7 +42,7 @@ try {
   const current = await video.evaluate(video => video.currentTime);
   assert.ok(current > 0, 'Standalone HTML must play the embedded MP4 without a server');
   await video.evaluate(video => video.pause());
-  await page.locator('.chapter').nth(3).click();
+  await page.locator('.chapter').last().click();
   await page.waitForTimeout(300);
   assert.ok(await video.evaluate(video => video.currentTime > 5), 'Chapter buttons should seek');
   await page.screenshot({ path: 'artifacts/review-page.png', fullPage: true });

@@ -17,7 +17,7 @@ const hub = new RoomHub(modes);
 const server = createServer(async (req, res) => {
   try {
     const url = new URL(req.url ?? '/', 'http://localhost');
-    if (url.pathname === '/health') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, rooms: hub.roomCount, version: '0.3.0' })); return; }
+    if (url.pathname === '/health') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify({ ok: true, rooms: hub.roomCount, version: '1.0.0' })); return; }
     if (url.pathname === '/api/modes') { res.writeHead(200, { 'Content-Type': 'application/json' }); res.end(JSON.stringify(hub.modeList())); return; }
     if (!production) { vite!.middlewares(req, res); return; }
     let filename = resolve(dist, `.${decodeURIComponent(url.pathname)}`);
@@ -74,7 +74,7 @@ const loop = setInterval(() => {
 const heartbeat = setInterval(() => {
   for (const ws of sockets.clients) { if (!alive.has(ws)) { ws.terminate(); continue; } alive.delete(ws); ws.ping(); }
 }, 15_000);
-server.listen(port, host, () => console.log(`게임천국 · http://localhost:${port} (${production ? 'production' : 'development'})`));
+server.listen(port, host, () => console.log(`집째로 도망 · http://localhost:${port} (${production ? 'production' : 'development'})`));
 function shutdown(): void {
   clearInterval(loop); clearInterval(heartbeat);
   for (const ws of sockets.clients) ws.close(1001, 'Server shutting down');

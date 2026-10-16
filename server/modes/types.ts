@@ -1,6 +1,6 @@
 import type { ModeInfo, PlayerInfo } from '../../shared/protocol.js';
 
-export interface CommandResult { ok: boolean; error?: string }
+export interface CommandResult { ok: boolean; error?: string; broadcast?: boolean }
 export interface ModeSession {
   command(playerId: string, action: unknown): CommandResult;
   tick(dt: number): void;

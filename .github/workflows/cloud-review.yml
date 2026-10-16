@@ -18,7 +18,7 @@ jobs:
   review:
     name: Build, test and record
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v6
       - uses: actions/setup-node@v6
@@ -35,10 +35,11 @@ jobs:
         run: npx playwright install --with-deps chromium
       - name: Install Korean fonts and video encoder
         run: sudo apt-get install -y fonts-noto-cjk ffmpeg
-      - name: Record real two-player gameplay
+      - name: Record actual two and four-player gameplay
         env:
           REVIEW_BASE_URL: http://127.0.0.1:3000
           FFMPEG_PATH: ffmpeg
+          REVIEW_SLICE_ONLY: '1'
         run: |
           npm start > /tmp/game-heaven-server.log 2>&1 &
           SERVER_PID=$!
@@ -54,18 +55,27 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: nightwatch-review
+          name: houseflight-review
           retention-days: 30
           if-no-files-found: warn
           path: |
             artifacts/review.html
-            artifacts/nightwatch-preview.mp4
+            artifacts/houseflight-preview.mp4
             artifacts/combat-sheet.jpg
             artifacts/poster.png
             artifacts/review-page.png
             artifacts/verification.json
-            artifacts/failure.png
-            artifacts/friend-failure.png
+            artifacts/menu.png
+            artifacts/lobby.png
+            artifacts/combat.png
+            artifacts/gate.png
+            artifacts/camp.png
+            artifacts/canal.png
+            artifacts/boss.png
+            artifacts/results.png
+            artifacts/four-player.png
+            artifacts/full-playthrough.mp4
+            artifacts/failure-*.png
             artifacts/failure-details.json
       - name: Show server log on failure
         if: failure()

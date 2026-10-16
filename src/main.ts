@@ -1,176 +1,92 @@
 import './style.css';
-import { setSoundEnabled, playUiSound, finishAudioRecording } from './core/audio.js';
-import { DEFENSE_ID, FAMILIES, FAMILIES_INFO, RARITIES } from '../shared/defense.js';
-import type { ModeInfo, RoomSnapshot, ServerMessage } from '../shared/protocol.js';
-import { Transport } from './core/transport.js';
-import { clientModes } from './modes/registry.js';
-import type { ClientMode } from './modes/types.js';
-import { drawGuardian, mapArt, portrait } from './modes/starwood/art.js';
+import {Transport} from './core/transport.js';
+import {setSoundEnabled,playUiSound,finishAudioRecording} from './core/audio.js';
+import {EscapeScene} from './modes/escape/scene.js';
+import {EscapeView} from './modes/escape/view.js';
+import {ESCAPE_ID,type EscapeState} from '../shared/escape.js';
+import type {RoomSnapshot,ServerMessage} from '../shared/protocol.js';
 
-const app = document.querySelector<HTMLDivElement>('#app')!;
-app.innerHTML = `
-  <header class="topbar"><div class="topbar-inner"><a class="brand" href="/" aria-label="게임천국 홈"><span class="brand-mark">✦</span><span>게임천국<small>GAME HEAVEN</small></span></a><nav aria-label="메인 메뉴"><button class="nav-link current" id="play-nav">게임하기</button><button class="nav-link" id="catalog-nav">용병 도감</button></nav><div class="topbar-right"><span class="connection" id="connection"><i></i><span>서버 연결 중</span></span><span class="header-divider"></span><button class="icon-button" id="sound-toggle" aria-label="효과음 켜기" title="효과음 켜기">♫<span class="sound-off">/</span></button><button class="icon-button" id="help" aria-label="도움말">?</button><span class="profile-icon">나</span></div></div></header>
-  <main class="workspace"><div class="page-heading"><div><div class="breadcrumb">게임천국 <span>/</span> 개인 운빨 디펜스</div><div class="title-line"><h1>밤의 용병단</h1><span class="alpha-badge">NIGHTWATCH / 0.3</span></div><p>각자의 전장. 끝까지 버티게 할 한 번의 행운.</p></div><div class="room-tools" id="room-tools" hidden><button class="room-code-button" id="copy-room"><span class="live-dot"></span>ROOM <b id="room-code"></b><span>⧉</span></button><button class="text-button" id="leave-room">나가기 ↗</button></div><span class="mode-badge" id="mode-badge"><span>◈</span> 1–4인 개인전 <i>·</i> 랜덤 디펜스</span></div><div id="screen"></div></main>
-  <div class="toast" id="toast" role="status" hidden></div>
-  <div class="reconnect-overlay" hidden><span class="spinner"></span><h2>친구들이 기다리고 있어요</h2><p>연결을 복구하는 중입니다. 내 용병는 자리를 지켜요.</p></div>
-  <dialog id="info-dialog"><button class="dialog-close" aria-label="닫기">×</button><div id="dialog-content"></div></dialog>
-  <div class="demo-cursor" hidden></div><div class="demo-caption" hidden><span class="caption-number"></span><div><b></b><p></p></div></div>`;
+const app=document.querySelector<HTMLDivElement>('#app')!;
+const houseIcon='<svg viewBox="0 0 40 40" fill="none" aria-hidden="true"><path d="M6 20 20 8l14 12M10 18v14h20V18M17 32V21h7v11" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/><path d="m2 27 4-2m-2 9 5-2m22 3h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>';
+app.innerHTML='<div id="menu-world"></div><div class="menu-shade"></div><header class="topbar"><a class="brand" href="/" aria-label="집째로 도망 홈">'+houseIcon+'<span>집째로 도망<small>HOUSEFLIGHT</small></span></a><div class="topbar-tools"><span class="connection" id="connection"><i></i><span>연결 중</span></span><button id="copy-room" class="room-pill" hidden>ROOM <b></b> ⧉</button><button id="sound-toggle" class="round-button" aria-label="효과음 켜기">♫<span class="muted-slash">／</span></button><button id="help" class="round-button" aria-label="도움말">?</button><button id="leave-room" class="quiet-button" hidden>방 나가기 ↗</button></div></header>'
+  +'<main id="screen"></main><div class="toast" id="toast" role="status" hidden></div><div class="connection-overlay" hidden><span class="loader"></span><h2>집과 다시 연결하고 있어요.</h2><p>잠시만 기다려 주세요. 같은 자리로 돌아갑니다.</p></div><dialog id="help-dialog"><button class="close-dialog" aria-label="닫기">×</button><span class="small-label">YOUR HOME. YOUR CREW.</span><h2>갈고리 하나로,<br>같이 살아남자.</h2><p>집은 자동으로 달립니다. 길을 막은 장애물을 치우고, 마지막 방벽까지 우리 집을 지켜 주세요.</p><dl><div><dt>W A S D / 방향키</dt><dd>이동</dd></div><div><dt>좌클릭 유지</dt><dd>갈고리 · 회수 / 공격 / 쓰러진 동료 구조</dd></div><div><dt>우클릭</dt><dd>들고 있는 물체 투척 · 빈손이면 밀치기</dd></div><div><dt>E / Q</dt><dd>장착·설치 / 내려놓기</dd></div><div><dt>Space / F</dt><dd>회피 / 위치 알리기</dd></div></dl><p class="help-note">고철은 집 근처에서 납품, 축전지는 엔진 가속, 수리 가방은 집과 동료 회복. 화약통은 던지거나 집에서 박격포로 발사할 수 있어요. 쓰러진 친구를 조준하고 갈고리를 쏘면 즉시 구조합니다.</p><button class="primary close-help">알겠어, 출발하자 ↗</button></dialog><div class="review-caption" hidden><span></span><strong></strong><p></p></div>';
 
-const $ = <T extends HTMLElement = HTMLElement>(id: string) => document.getElementById(id) as T;
-const screen = $('screen');
-const net = new Transport();
-let room: RoomSnapshot | null = null;
-let playerId = '';
-let mode: ClientMode | null = null;
-let screenKind = '';
-let modes: ModeInfo[] = [];
-let toastTimer: ReturnType<typeof setTimeout>;
-let sound = false;
-const dialog = $<HTMLDialogElement>('info-dialog');
-
-function notice(message: string): void {
-  const element = $('toast'); element.textContent = message; element.hidden = false;
-  clearTimeout(toastTimer); toastTimer = setTimeout(() => { element.hidden = true; }, 3200);
+const $=<T extends HTMLElement=HTMLElement>(id:string)=>document.getElementById(id) as T;
+const net=new Transport();let room:RoomSnapshot|null=null,playerId='',view:EscapeView|null=null,menu:EscapeScene|null=null,screenKind='',sound=false;
+let toastTimer:ReturnType<typeof setTimeout>;
+function notice(message:string):void{const toast=$('toast');toast.textContent=message;toast.hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>toast.hidden=true,3000);}
+function send(message:Parameters<Transport['send']>[0]):void{if(!net.send(message))notice('서버에 연결한 뒤 다시 시도해 주세요.');}
+function name():string{
+  const value=$<HTMLInputElement>('nickname')?.value.trim()??localStorage.getItem('heaven.name')??'도망자';
+  if(!value){notice('친구들이 부를 이름을 입력하세요.');$('nickname')?.focus();return'';}
+  localStorage.setItem('heaven.name',value);return value;
 }
-function send(message: Parameters<Transport['send']>[0]): void { if (!net.send(message)) notice('서버에 다시 연결하고 있어요. 잠시 기다려 주세요.'); }
-function nickname(): string {
-  const input = $<HTMLInputElement>('nickname'); const name = input?.value.trim() ?? localStorage.getItem('heaven.name') ?? '떠돌이';
-  if (!name) { notice('닉네임을 입력해 주세요.'); input?.focus(); return ''; }
-  localStorage.setItem('heaven.name', name); return name;
+function ensureMenu():void {
+  $('menu-world').hidden=false;document.querySelector<HTMLElement>('.menu-shade')!.hidden=false;app.classList.remove('in-game');
+  if(!menu)try{menu=new EscapeScene($('menu-world'));}catch{notice('3D 화면을 준비하지 못했어요. WebGL을 지원하는 브라우저를 사용해 주세요.');}
 }
-function drawWaiting(canvas: HTMLCanvasElement, members = 0): void {
-  canvas.width = 984; canvas.height = 716;
-  const ctx = canvas.getContext('2d')!; ctx.drawImage(mapArt(), 0, 0);
-  const positions = [[320,340],[450,340],[580,340],[320,470],[450,470],[580,470]];
-  for(let i=0;i<FAMILIES.length;i++)drawGuardian(ctx,positions[i][0],positions[i][1],FAMILIES[i],i===members?2:1,2.6);
+function entry():void{
+  if(screenKind==='entry')return;view?.destroy();view=null;screenKind='entry';ensureMenu();
+  $('screen').innerHTML='<div class="entry-content"><div class="entry-copy"><span class="eyebrow"><i></i> 2–4인 온라인 협동 액션</span><h1>집은 두고<br>갈 수 없잖아.</h1><p>폭풍은 오고, 집은 달리고.<br>갈고리 하나로 함께 만드는 아슬아슬한 탈출.</p><div class="feature-tags"><span>끌어오고</span><i>·</i><span>던지고</span><i>·</i><span>서로를 구하고</span></div></div><section class="entry-card"><div class="card-heading"><span>오늘의 도주 멤버는?</span><small>01 / JOIN THE CREW</small></div><label for="nickname">친구들이 부를 이름</label><input id="nickname" maxlength="12" autocomplete="nickname" placeholder="도망자"/><button class="primary" id="create-room">우리 집 출발 준비 <span>↗</span></button><div class="join-divider">초대받았다면</div><div class="join-row"><input id="join-code" maxlength="5" autocomplete="off" placeholder="방 코드 5자리" aria-label="방 코드"/><button id="join-room">합류하기 ↗</button></div><p class="entry-note">친구 한 명만 더 있으면 출발.<br>최대 4명 · 한 집 · 같은 목적지.</p></section></div><div class="scene-location"><i></i><div><span>먼지의 외곽 / DUSTBOUND OUTSKIRTS</span><p>오늘도, 우리의 집은 움직인다.</p></div><small>HOUSEFLIGHT · 1.0</small></div>';
+  $<HTMLInputElement>('nickname').value=localStorage.getItem('heaven.name')??'도망자';
+  const code=new URLSearchParams(location.search).get('room');if(code)$<HTMLInputElement>('join-code').value=code.slice(0,5).toUpperCase();
+  $('create-room').onclick=()=>{const n=name();if(n){playUiSound();send({type:'create',name:n,modeId:ESCAPE_ID});}};
+  const join=()=>{const n=name(),code=$<HTMLInputElement>('join-code').value.trim().toUpperCase();if(!n)return;if(code.length!==5){notice('방 코드 다섯 자리를 입력하세요.');return;}send({type:'join',name:n,code});};
+  $('join-room').onclick=join;$('join-code').onkeydown=e=>{if(e.key==='Enter')join();};
 }
-function populateModes(): void {
-  const select = document.getElementById('mode-choice') as HTMLSelectElement | null;
-  if (!select) return;
-  const previous = select.value;
-  const available = modes.length ? modes : [{ id: DEFENSE_ID, title: '밤의 용병단', subtitle: '', minPlayers: 1, maxPlayers: 4 }];
-  select.replaceChildren(...available.map(info => {
-    const option = document.createElement('option');
-    option.value = info.id; option.textContent = info.title + ' · ' + info.minPlayers + '–' + info.maxPlayers + '인';
-    return option;
-  }));
-  if (available.some(info => info.id === previous)) select.value = previous;
-}
-function showEntry(): void {
-  if (screenKind === 'entry') return;
-  mode?.destroy(); mode = null; screenKind = 'entry';
-  screen.innerHTML = `<div class="entry-layout"><section class="entry-forest"><canvas aria-label="잿빛 성채와 사람형 용병들"></canvas><div class="entry-story"><span class="eyebrow">YOUR FIELD. YOUR FORTUNE.</span><h2>오늘 밤의 운명을<br>뽑아볼까?</h2><p>운명으로 모인 여섯 직업.<br>유물과 조합으로 새벽까지 버티세요.</p><span class="forest-tag">✦ &nbsp; 첫 번째 모드 · 밤의 용병단</span></div></section><section class="entry-card panel"><div class="section-label"><span>오늘의 운을 시험할까요?</span><span>✧</span></div><h2>용병단을 모집합니다.</h2><p>닉네임만 정하면 준비 끝.<br>방 코드를 나누고 각자의 전장에서 겨루세요.</p><label for="mode-choice">플레이할 모드</label><select id="mode-choice" aria-label="플레이할 모드"></select><label for="nickname">친구들이 부를 이름</label><input id="nickname" maxlength="12" placeholder="떠돌이" autocomplete="nickname" /><button class="primary" id="create-room">새로운 방 만들기 <span>↗</span></button><div class="or-divider"><span>초대받았다면</span></div><label for="join-code">방 코드</label><div class="join-row"><input id="join-code" maxlength="5" placeholder="ABCDE" aria-label="방 코드" autocomplete="off" /><button class="secondary" id="join-room">입장</button></div><div class="entry-note"><span>◈</span><p>혼자서도 시작할 수 있어요.<br>최대 4명 · 전장과 골드, 승패는 개인별.</p></div><div class="build-label">GAME HEAVEN <span>·</span> PROTOTYPE 0.3</div></section></div><p class="entry-footer">같은 방, 새로운 놀이. <span>우리가 만드는 작은 게임천국.</span></p>`;
-  drawWaiting(screen.querySelector('canvas')!);
-  $<HTMLInputElement>('nickname').value = localStorage.getItem('heaven.name') ?? '떠돌이';
-  populateModes();
-  const code = new URLSearchParams(location.search).get('room'); if (code) $<HTMLInputElement>('join-code').value = code.slice(0, 5).toUpperCase();
-  $('create-room').addEventListener('click', () => { const name = nickname(); if (name) send({ type: 'create', name, modeId: $<HTMLSelectElement>('mode-choice').value || modes[0]?.id || DEFENSE_ID }); });
-  const join = () => { const name = nickname(); if (!name) return; const code = $<HTMLInputElement>('join-code').value.toUpperCase().trim(); if (code.length !== 5) { notice('다섯 자리 방 코드를 입력해 주세요.'); return; } send({ type: 'join', name, code }); };
-  $('join-room').addEventListener('click', join);
-  $('join-code').addEventListener('keydown', event => { if (event.key === 'Enter') join(); });
-}
-function showLobby(): void {
-  if (!room) return;
-  const host = room.hostId === playerId;
-  if (screenKind !== 'lobby') {
-    mode?.destroy(); mode = null; screenKind = 'lobby';
-    screen.innerHTML = `<div class="entry-layout lobby-layout"><section class="entry-forest lobby-forest"><canvas></canvas><div class="lobby-center"><span class="eyebrow">BEFORE THE FIRST RAID</span><h2>친구를 기다리는 시간도<br>게임의 일부니까.</h2><p>방 코드를 나누고, 각자의 운명을 시험하세요.</p></div><div class="lobby-map-tag"><i class="live-dot"></i> 잿빛 성채 · 12웨이브 개인전</div></section><section class="entry-card panel lobby-card"><div class="section-label"><span>개인전 대기실</span><span id="lobby-capacity"></span></div><h2>밤의 용병단</h2><p>각자의 용병, 각자의 전장.<br>3막 · 12웨이브 · 보스 3종.<br>각자의 소환 운과 조합으로 새벽까지 버티세요.</p><div id="lobby-players"></div><div class="lobby-rule"><span>✦</span><div><b>내 성채를 지키는 방법</b><p>골드로 용병을 소환하고 배치하세요.<br>친구가 탈락해도 내 전투는 계속됩니다.</p></div></div><button class="primary" id="start-game"></button><small class="lobby-start-tip" id="start-tip"></small></section></div>`;
-    $('start-game').addEventListener('click', () => {
-      if (!room) return;
-      if (room.hostId === playerId) send({ type: 'start' });
-      else send({ type: 'ready', ready: !room.players.find(p => p.id === playerId)?.ready });
-    });
+function lobby():void {
+  if(!room)return;const host=room.hostId===playerId,others=room.players.filter(p=>p.id!==room!.hostId),ready=room.players.length>=2&&room.players.every(p=>p.connected)&&others.every(p=>p.ready);
+  if(screenKind!=='lobby'){view?.destroy();view=null;screenKind='lobby';ensureMenu();$('screen').innerHTML='<div class="lobby-layout"><div class="lobby-story"><span class="eyebrow">BEFORE THE STORM</span><h1>이번에도,<br>같이 가자.</h1><p>누군가는 길을 뚫고,<br>누군가는 친구를 끌어올리고.</p><div class="lobby-code"><span>친구에게 이 코드를 보내세요</span><button id="lobby-copy"></button></div></div><section class="lobby-card entry-card"><div class="card-heading"><span>우리의 도주 팀</span><small id="crew-count"></small></div><div id="lobby-members"></div><div class="lobby-mission"><span>이번 원정</span><b>먼지의 외곽 → 마지막 방벽</b><p>길을 열고, 집을 개조하고, 추격자를 떼어 내세요.</p></div><button id="ready-start" class="primary"></button><p id="lobby-note"></p></section></div>';$('lobby-copy').onclick=copyCode;}
+  $('crew-count').textContent=room.players.length+' / 4';$('lobby-copy').textContent=room.code+' ⧉';
+  const members=$('lobby-members');members.replaceChildren();
+  for(let i=0;i<4;i++){
+    const p=room.players[i],row=document.createElement('div');row.className='lobby-member'+(p?'':' empty');
+    if(p){const orb=document.createElement('i');orb.style.background=p.color;const label=document.createElement('b');label.textContent=p.name+(p.id===playerId?' · 나':'');const state=document.createElement('span');state.textContent=!p.connected?'재접속 중':p.id===room.hostId?'방장':p.ready?'준비 완료':'준비 중';row.append(orb,label,state);}
+    else row.innerHTML='<i>+</i><span>친구의 자리</span>';members.append(row);
   }
-  drawWaiting(screen.querySelector('canvas')!, room.players.length);
-  $('lobby-capacity').textContent = `${room.players.length} / 4`;
-  $('lobby-players').replaceChildren(...room.players.map(player => {
-    const row = document.createElement('div'); row.className = 'lobby-player';
-    row.innerHTML = `<div class="avatar" style="--player-color:${player.color}"></div><div class="member-name"><strong></strong><small></small></div><span class="ready-status"></span>`;
-    row.querySelector('strong')!.textContent = player.name;
-    row.querySelector('small')!.textContent = player.id === playerId ? '나' : '함께할 친구';
-    row.querySelector('.ready-status')!.textContent = !player.connected ? '재접속 중' : player.id === room!.hostId ? '방장' : player.ready ? '준비 완료' : '준비 중';
-    return row;
-  }));
-  const self = room.players.find(p => p.id === playerId);
-  $('start-game').textContent = host ? room.players.length === 1 ? '혼자 먼저 출발하기 ↗' : '개인전 시작하기 ↗' : self?.ready ? '준비 취소' : '준비 완료 ↗';
-  $<HTMLButtonElement>('start-game').disabled = host && room.players.some(p => !p.connected || (p.id !== playerId && !p.ready));
-  $('start-tip').textContent = host ? '모두 준비되면 방장이 출발할 수 있어요.' : '방장이 출발하면 함께 시작해요.';
+  const button=$<HTMLButtonElement>('ready-start'),self=room.players.find(p=>p.id===playerId)!;
+  button.disabled=host&&!ready;button.textContent=host?'모두 탑승! 출발하기 ↗':self.ready?'준비 취소':'준비 완료 ↗';
+  button.onclick=()=>send(host?{type:'start'}:{type:'ready',ready:!self.ready});
+  $('lobby-note').textContent=room.players.length<2?'친구 한 명이 더 합류하면 출발할 수 있어요.':host&&!ready?'친구들이 준비되면 출발할 수 있어요.':host?'갈고리와 마음의 준비, 모두 끝.':'방장이 출발을 준비합니다.';
 }
-function render(): void {
-  document.body.classList.toggle('is-playing',!!room&&room.phase!=='lobby');
-  $('room-tools').hidden = !room; $('mode-badge').hidden = !!room;
-  if (!room) { showEntry(); return; }
-  $('room-code').textContent = room.code;
-  document.querySelector('h1')!.textContent = modes.find(info => info.id === room!.modeId)?.title ?? room.modeId;
-  if (room.phase === 'lobby') { showLobby(); return; }
-  if (screenKind !== `mode:${room.modeId}`) {
-    mode?.destroy(); mode = null; screenKind = `mode:${room.modeId}`;
-    const factory = clientModes.get(room.modeId);
-    if (!factory) { screen.textContent = '이 모드를 표시할 수 없습니다. 게임을 새로고침해 주세요.'; return; }
-    mode = factory({ element: screen, playerId, players: room.players, command: action => {
-      if (!net.command(action)) notice('다시 연결하고 있어요. 연결 후 조작해 주세요.');
-    }, notice });
-    $('return-lobby')?.addEventListener('click', () => send({ type: 'lobby' }));
+function render():void {
+  const inRoom=!!room;$('copy-room').hidden=!inRoom;$('leave-room').hidden=!inRoom;
+  if(room)$('copy-room').querySelector('b')!.textContent=room.code;
+  if(!room){entry();return;}
+  if(room.phase==='lobby'){lobby();return;}
+  if(screenKind!=='playing'){
+    menu?.destroy();menu=null;$('menu-world').hidden=true;document.querySelector<HTMLElement>('.menu-shade')!.hidden=true;app.classList.add('in-game');screenKind='playing';
+    try{view=new EscapeView({element:$('screen'),playerId,players:room.players,command:action=>{if(net.connected)net.command(action);},notice});}
+    catch(error){notice('3D 화면을 시작하지 못했어요. '+String(error));return;}
   }
-  mode?.update(room);
+  view?.update(room);
 }
-function tone(ok: boolean): void { if(!ok) playUiSound(); }
-net.addEventListener('message', event => {
-  const message = (event as CustomEvent<ServerMessage>).detail;
-  if (message.type === 'welcome') { modes = message.modes; populateModes(); }
-  if (message.type === 'joined') { room = message.room; playerId = message.playerId; render(); }
-  if (message.type === 'state') { room = message.room; render(); }
-  if (message.type === 'error') notice(message.message);
-  if (message.type === 'ack') { tone(message.ok); if (!message.ok) notice(message.error ?? '명령을 처리하지 못했어요.'); }
-  if (message.type === 'left') { room = null; playerId = ''; render(); }
+net.addEventListener('message',event=>{
+  const message=(event as CustomEvent<ServerMessage>).detail;
+  if(message.type==='joined'){playerId=message.playerId;room=message.room;render();}
+  if(message.type==='state'){room=message.room;render();}
+  if(message.type==='left'){room=null;playerId='';render();}
+  if(message.type==='error')notice(message.message);
+  if(message.type==='ack'&&!message.ok&&message.error)notice(message.error);
 });
-function connectionState(): void {
-  $('connection').classList.toggle('connected', net.connected);
-  $('connection').querySelector('span')!.textContent = net.connected ? `연결됨${net.latency ? ` · ${net.latency}ms` : ''}` : '다시 연결 중';
-  document.querySelector<HTMLElement>('.reconnect-overlay')!.hidden = net.connected || !room;
-}
-net.addEventListener('connection', connectionState); net.addEventListener('latency', connectionState);
-net.addEventListener('sessionExpired', () => { room = null; playerId = ''; render(); connectionState(); });
-net.addEventListener('replaced', () => { room = null; playerId = ''; render(); notice('다른 창에서 이 방에 접속했어요.'); });
-$('copy-room').addEventListener('click', async () => {
-  if (!room) return;
-  try { await navigator.clipboard.writeText(`${location.origin}/?room=${room.code}`); notice(`초대 링크를 복사했어요. 방 코드 ${room.code}`); }
-  catch { notice(`친구에게 방 코드 ${room.code}를 알려주세요.`); }
+net.addEventListener('connection',event=>{
+  const connected=(event as CustomEvent<{connected:boolean}>).detail.connected;
+  $('connection').classList.toggle('online',connected);$('connection').querySelector('span')!.textContent=connected?'온라인':'연결 중';
+  document.querySelector<HTMLElement>('.connection-overlay')!.hidden=connected||!room;
 });
-$('leave-room').addEventListener('click', () => {
-  $('dialog-content').innerHTML = '<p class="eyebrow">LEAVE ROOM</p><h2>방에서 나갈까요?</h2><p>진행 중인 내 용병는 전장에서 철수해요.</p><div class="dialog-actions"><button class="secondary" id="stay">계속하기</button><button class="primary" id="confirm-leave">나가기</button></div>';
-  dialog.showModal(); $('stay').onclick = () => dialog.close(); $('confirm-leave').onclick = () => { send({ type: 'leave' }); dialog.close(); };
-});
-$('sound-toggle').addEventListener('click', () => {
-  sound = !sound; setSoundEnabled(sound); $('sound-toggle').classList.toggle('sound-on', sound);
-  $('sound-toggle').setAttribute('aria-label', sound ? '효과음 끄기' : '효과음 켜기');
-  $('sound-toggle').setAttribute('title', sound ? '효과음 끄기' : '효과음 켜기'); tone(true);
-});
-$('play-nav').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
-$('catalog-nav').addEventListener('click', () => {
-  $('dialog-content').innerHTML = `<p class="eyebrow">MERCENARY FIELD GUIDE</p><h2>사람들이 지키는 마지막 밤.</h2><p>6개 직업과 5개 등급. 장비와 공격 방식이 다른 사람형 용병을 소환하세요.</p><div class="catalog-grid">${FAMILIES.map(family => `<article><img src="${portrait(family)}" alt="${FAMILIES_INFO[family].name}" /><h3>${FAMILIES_INFO[family].name}</h3><p>${FAMILIES_INFO[family].role}</p><small>공격 ${FAMILIES_INFO[family].damage} · 주기 ${FAMILIES_INFO[family].interval}초</small></article>`).join('')}</div><div class="rarity-guide">${RARITIES.map(rank => `<span style="color:${rank.color}">✦ ${rank.name} ${+(rank.chance * 100).toFixed(2)}%</span>`).join('')}</div><p class="dialog-note">표시는 일반 소환 확률입니다. 전투 화면의 ‘소환 확률 보기’에서 승부 소환의 확률도 확인할 수 있습니다. 보장 소환과 합성은 없습니다.</p>`;
-  dialog.showModal();
-});
-$('help').addEventListener('click', () => {
-  $('dialog-content').innerHTML = '<p class="eyebrow">HOW TO SURVIVE THE NIGHT</p><h2>내 전장, 내 운명.</h2><ol class="help-list"><li><b>용병 소환</b><p><kbd>Q</kbd> 일반 소환 40 G. <kbd>R</kbd> 승부 소환 120 G. 승부 소환도 일반이 나올 수 있으며 확률표를 공개합니다.</p></li><li><b>배치와 유물</b><p>용병을 클릭하면 사거리가 보입니다. 드래그 또는 선택 후 우클릭으로 재배치합니다. 최대 16명이며 해고하면 일부 골드를 돌려받습니다. <kbd>W</kbd> 전원 강화, <kbd>E</kbd> 포격 조준 후 클릭. <kbd>ESC</kbd> 조준 취소.</p></li><li><b>개인전과 관전</b><p>같은 직업 3명으로 시너지가 켜집니다. 2·5·8웨이브에는 유물 3개 중 하나를 무료로 선택하세요. 보스의 붉은 예고 원에서는 용병을 이동해 기절을 피하세요.</p></li><li><b>개인전과 관전</b><p>같은 방에 있어도 몬스터·용병·골드·승패는 각각입니다. 오른쪽 플레이어를 클릭해 전장을 관전하고, 나를 클릭하면 돌아옵니다. 관전 중에는 명령을 보낼 수 없습니다.</p></li><li><b>승리와 패배</b><p>12웨이브 방어 성공 시 개인 승리. 내 전장에 몬스터 55마리 누적 또는 보스 제한 시간 초과 시 개인 패배입니다. 모두 종료되면 방장이 대기실로 돌아갈 수 있습니다.</p></li></ol>';
-  dialog.showModal();
-});
-dialog.querySelector('.dialog-close')!.addEventListener('click', () => dialog.close());
-dialog.addEventListener('click', event => { if (event.target === dialog) { const rect = dialog.getBoundingClientRect(); if (event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom) dialog.close(); } });
-showEntry();
-window.addEventListener('beforeunload', () => { net.destroy(); });
-
-// Inspection, captions and output-audio capture for recordings; no simulation mutation API.
-if (new URLSearchParams(location.search).get('record') === '1') {
-  Object.assign(window, { __review: {
-    snapshot: () => structuredClone({ room, playerId }),
-    audio: finishAudioRecording,
-    caption: (number: string, title: string, text: string) => {
-      const box = document.querySelector<HTMLElement>('.demo-caption')!; box.hidden = !title;
-      box.querySelector('.caption-number')!.textContent = number; box.querySelector('b')!.textContent = title; box.querySelector('p')!.textContent = text;
-    },
-  } });
-  const cursor = document.querySelector<HTMLElement>('.demo-cursor')!; cursor.hidden = false;
-  window.addEventListener('pointermove', event => { cursor.style.left = `${event.clientX}px`; cursor.style.top = `${event.clientY}px`; });
-  window.addEventListener('pointerdown', () => { cursor.classList.add('click'); setTimeout(() => cursor.classList.remove('click'), 240); });
-}
+net.addEventListener('sessionExpired',()=>{room=null;playerId='';screenKind='';render();notice('이전 원정이 종료됐어요. 새 방에서 다시 만나요.');});
+net.addEventListener('replaced',()=>{room=null;playerId='';screenKind='';render();notice('다른 창에서 같은 캐릭터로 접속했어요.');});
+async function copyCode():Promise<void>{if(!room)return;try{await navigator.clipboard.writeText(room.code);notice('방 코드 '+room.code+' 복사 완료');}catch{notice('친구에게 '+room.code+' 코드를 보내세요.');}}
+$('copy-room').onclick=copyCode;$('leave-room').onclick=()=>send({type:'leave'});
+$('screen').addEventListener('return-lobby',()=>send({type:'lobby'}));
+$('sound-toggle').onclick=()=>{sound=!sound;setSoundEnabled(sound);$('sound-toggle').classList.toggle('sound-on',sound);$('sound-toggle').setAttribute('aria-label',sound?'효과음 끄기':'효과음 켜기');playUiSound();};
+const help=$<HTMLDialogElement>('help-dialog');$('help').onclick=()=>help.showModal();help.querySelector('.close-dialog')!.addEventListener('click',()=>help.close());help.querySelector('.close-help')!.addEventListener('click',()=>help.close());
+help.addEventListener('click',e=>{if(e.target===help)help.close();});
+entry();
+declare global {interface Window {__review?:{snapshot:()=>{room:RoomSnapshot|null;playerId:string};project:(x:number,z:number,y?:number)=>{x:number;y:number;visible:boolean}|null;metrics:()=>unknown;audio:typeof finishAudioRecording;caption:(title:string,description:string)=>void}}}
+if(new URLSearchParams(location.search).has('review'))window.__review={
+  snapshot:()=>({room:room?JSON.parse(JSON.stringify(room)):null,playerId}),
+  project:(x,z,y=1)=>{if(!view)return null;const point=view.scene.project(x,z,y),rect=view.scene.canvas.getBoundingClientRect();return{x:point.x+rect.left,y:point.y+rect.top,visible:point.visible};},
+  metrics:()=>view?.scene.metrics()??null,audio:finishAudioRecording,
+  caption:(title,description)=>{const el=document.querySelector<HTMLElement>('.review-caption')!;el.hidden=!title;el.querySelector('span')!.textContent='REAL GAMEPLAY / 실제 플레이';el.querySelector('strong')!.textContent=title;el.querySelector('p')!.textContent=description;}
+};

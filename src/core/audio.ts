@@ -1,3 +1,4 @@
+import type {EscapeEvent,EscapeState} from '../../shared/escape.js';
 import type { CombatEvent } from '../../shared/defense.js';
 
 let audio:AudioContext|null=null,master:GainNode|null=null,noise:AudioBuffer|null=null;
@@ -66,4 +67,31 @@ export async function finishAudioRecording():Promise<{base64:string;startedAt:nu
   const blob=new Blob(chunks,{type:capture.mimeType});
   const url=await new Promise<string>((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(String(reader.result));reader.onerror=()=>reject(reader.error);reader.readAsDataURL(blob);});
   return{base64:url.slice(url.indexOf(',')+1),startedAt:recordedAt};
+}
+
+let lastBeat=-1,escapeHitAt=0;
+export function playEscapeEvent(e:EscapeEvent):void {
+  if(!enabled||!audio)return;
+  if(e.type==='hook'){impact(.1,.06,2600,'bandpass');pulse(350,120,.13,.04,'triangle');}
+  if(e.type==='throw'){impact(.16,.07,1200);pulse(140,300,.12,.025);}
+  if(e.type==='hit'&&performance.now()-escapeHitAt>55){escapeHitAt=performance.now();impact(.12,.12,1100);pulse(e.text==='crew'?80:125,35,.13,.06,'sine');}
+  if(e.type==='explode'){impact(.48,.22,e.prop==='battery'?2400:800);pulse(85,24,.45,.13,'sine');}
+  if(e.type==='kill'){pulse(210,80,.16,.035);}
+  if(e.type==='install'||e.type==='repair'||e.type==='rescue'){for(let i=0;i<3;i++)pulse([330,440,550][i],[330,440,550][i],.23,.025,'sine',i*.07);}
+  if(e.type==='warning'){pulse(180,150,.2,.035,'triangle');pulse(180,150,.2,.03,'triangle',.28);}
+  if(e.type==='camp'||e.type==='upgrade'){chime(2);}
+  if(e.type==='boss'){impact(.6,.12,600);pulse(70,35,.7,.07,'sine');}
+  if(e.type==='win'){[262,330,392,523,659].forEach((n,i)=>pulse(n,n,1,.035,'sine',i*.15));}
+  if(e.type==='lose'){[196,175,147].forEach((n,i)=>pulse(n,n,.7,.035,'sine',i*.18));}
+  if(e.type==='dodge'||e.type==='pad'){impact(.12,.035,1500,'highpass');}
+}
+export function advanceEscapeAudio(s:EscapeState):void {
+  if(!enabled||!audio)return;
+  const beat=Math.floor(s.clock/.65);if(beat===lastBeat)return;lastBeat=beat;
+  if(s.phase==='won'||s.phase==='lost')return;
+  const bass=[65.4,65.4,77.8,58.3][Math.floor(beat/8)%4];
+  if(beat%2===0)pulse(bass,bass,.55,.012,'sine');
+  const notes=[261.6,0,392,0,311.1,0,349.2,0,261.6,0,466.2,392,0,311.1,0,0];
+  const note=notes[beat%notes.length];if(note)pulse(note,note,.45,s.phase==='camp'?.018:.008,'sine');
+  if(beat%4===0)impact(.35,.013,s.biome==='canal'?1400:850,'lowpass');
 }
