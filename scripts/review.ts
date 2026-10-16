@@ -10,7 +10,7 @@ const ffmpeg=process.env.FFMPEG_PATH??'ffmpeg',checks:{name:string;passed:boolea
 const segments:{start:number;end:number;title:string;description:string}[]=[];
 const sourceCommit=process.env.GITHUB_SHA??'uncommitted';
 await mkdir('artifacts',{recursive:true});
-const browser=await chromium.launch({headless:true,args:['--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-gpu-sandbox','--autoplay-policy=no-user-gesture-required']});
+const browser=await chromium.launch({headless:true,args:['--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling','--enable-unsafe-swiftshader','--disable-gpu-sandbox','--autoplay-policy=no-user-gesture-required']});
 const contexts:BrowserContext[]=[],pages:Page[]=[],errors:string[]=[],keys=new Map<Page,Set<string>>(),lastActions=new Map<string,number>(),debugActions=new Map<string,number>();
 let main:Page,videoStart=0,mainContext:BrowserContext,audio:{base64:string;startedAt:number}|null=null;
 const now=()=> (Date.now()-videoStart)/1000;
@@ -24,7 +24,7 @@ async function playfieldFits(page:Page):Promise<boolean>{
  });
 }
 async function newPage(name:string,record=false):Promise<Page>{
-  const context=await browser.newContext({viewport:record?{width:1440,height:900}:{width:960,height:700},deviceScaleFactor:record?1:.65,...(record?{recordVideo:{dir:'artifacts/raw',size:{width:1440,height:900}}}:{})});
+  const context=await browser.newContext({viewport:record?{width:1280,height:800}:{width:960,height:700},deviceScaleFactor:record?1:.65,...(record?{recordVideo:{dir:'artifacts/raw',size:{width:1280,height:800}}}:{})});
   contexts.push(context);const page=await context.newPage();pages.push(page);keys.set(page,new Set());
   // Every crew member represents a separate computer, not competing tabs on one desktop.
   const focus=await context.newCDPSession(page);await focus.send('Emulation.setFocusEmulationEnabled',{enabled:true});
@@ -60,7 +60,7 @@ async function agent(page:Page,index:number):Promise<void>{
   lastActions.set(p.id+d.action,Date.now()+(d.action==='hook'?550:d.action==='dodge'?1450:480));
 }
 try{
-  main=await newPage('노랑 우비',true);mainContext=contexts[0];await main.waitForTimeout(1300);await main.screenshot({path:'artifacts/menu.png'});
+  main=await newPage('노랑 우비',true);mainContext=contexts[0];await main.evaluate(()=>document.fonts.ready);await main.waitForTimeout(1300);await main.screenshot({path:'artifacts/menu.png'});
   await main.locator('#sound-toggle').click();await main.locator('#create-room').click();await main.locator('#lobby-copy').waitFor();
   check('혼자서는 출발할 수 없음',!await main.locator('#ready-start').isEnabled());
   const data=await snapshot(main),code=data.room!.code;
@@ -85,7 +85,7 @@ try{
   check('두 창의 이동 입력이 동시에 유지됨',movementAfter.crew.every(p=>{const before=movementBefore.crew.find(c=>c.id===p.id)!;return Math.hypot(p.x-before.x,p.z-before.z)>4;}));
 
 
-  const start=Date.now();let twoPlayerMetrics:{fps:number;drawCalls:number;triangles:number}|null=null;let loggedAt=0;let sawCarry=false,sawThrow=false,sawGate=false,sawCamp=false,sawSecond=false,sawBoss=false,reloaded=false,savedPoster=false;
+  const start=Date.now();let twoPlayerMetrics:{fps:number;drawCalls:number;triangles:number}|null=null;let loggedAt=0;let sawCarry=false,sawThrow=false,sawGate=false,sawCamp=false,sawSecond=false,sawBoss=false,reloaded=false,savedPoster=false;let canalShotAt=Infinity,bossShotAt=Infinity;
   const maxSeconds=slice?85:650;
   while((Date.now()-start)/1000<maxSeconds){
     await Promise.all([agent(main,0),agent(friend,1)]);
@@ -96,8 +96,10 @@ try{
     if(!sawThrow&&s.crew.some(p=>p.stats.throws>0)){sawThrow=true;check('실제 물체 회수와 투척',true);}
     if(!sawGate&&!s.gate.open&&s.gate.z-s.house.z<12){sawGate=true;await section('첫 장애물 돌파','갈고리로 장애물을 뜯고, 화약통으로 길을 뚫습니다.',22);await main.screenshot({path:'artifacts/gate.png'});}
     if(!sawCamp&&s.phase==='camp'){sawCamp=true;await section('집 개조와 경로 선택','실제 회수한 부품을 함께 쓰고, 다음 경로에 투표합니다.',17);await main.screenshot({path:'artifacts/camp.png'});check('장애물 돌파 후 정비와 경로 투표',true);}
-    if(!sawSecond&&s.stage===2){sawSecond=true;await section('경로 투표 결과: 운하','투표 결과가 다음 구역의 분위기와 진행에 반영됩니다.',20);await main.screenshot({path:'artifacts/canal.png'});}
-    if(!sawBoss&&s.enemies.some(e=>e.kind==='devourer')){sawBoss=true;await section('마지막 추격자, 고철 포식자','위험 예고를 피하고, 열린 흡입구에 물체를 던집니다.',35);await main.screenshot({path:'artifacts/boss.png'});}
+    if(!sawSecond&&s.stage===2){sawSecond=true;await section('경로 투표 결과: 운하','투표 결과가 다음 구역의 분위기와 진행에 반영됩니다.',20);canalShotAt=s.clock+3;}
+    if(!sawBoss&&s.enemies.some(e=>e.kind==='devourer')){sawBoss=true;await section('마지막 추격자, 고철 포식자','위험 예고를 피하고, 열린 흡입구에 물체를 던집니다.',35);bossShotAt=s.clock+3;}
+    if(s.clock>=canalShotAt){await main.screenshot({path:'artifacts/canal.png'});canalShotAt=Infinity;}
+    if(s.clock>=bossShotAt){await main.screenshot({path:'artifacts/boss.png'});bossShotAt=Infinity;}
     if(state.phase==='finished'){
       await release(main);await release(friend);await section(s.phase==='won'?'탈출 성공':'실패도 다음 원정의 경험','실제 서버 판정으로 끝난 한 판의 결과입니다.',9);
       await main.waitForTimeout(1800);await main.screenshot({path:'artifacts/results.png'});check('한 판이 실제 결과 화면까지 진행',true);break;

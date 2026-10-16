@@ -13,7 +13,7 @@ export class EscapeView implements ClientMode {
   constructor(private context:ModeContext){
     context.element.innerHTML='<div class="playfield"><div class="world"></div><div class="world-vignette"></div><div class="world-labels"></div><div class="float-layer"></div>'
       +'<div class="mission-hud"><div class="mission-title"><span class="small-label" id="stage-label">01 / 먼지의 외곽</span><strong id="objective">집과 함께 앞으로!</strong><span id="sub-objective">길을 뚫고, 서로를 끌어올리세요.</span></div>'
-      +'<div class="house-status"><span>우리의 집 <b id="hull-text"></b></span><div class="hull-track"><i id="hull-bar"></i></div><small id="engine-status">자동 주행</small></div>'
+      +'<div class="house-status"><span>집 내구도 <b id="hull-text"></b></span><div class="hull-track"><i id="hull-bar"></i></div><small id="engine-status">자동 주행</small></div>'
       +'<div class="journey-status"><span id="journey-time">00:00</span><div class="journey-track"><i id="journey-bar"></i></div><small id="distance-text">방벽까지 140 m</small></div></div>'
       +'<div class="crew-hud"></div><div class="supply-count"><span>'+toolIcon('parts')+'</span><b id="stock">2</b><small>공용 부품</small></div>'
       +'<div class="boss-hud" hidden><span>고철 포식자 <b id="boss-percent"></b></span><div><i id="boss-bar"></i></div><small id="boss-hint">흡입할 때 화약통을 던지세요</small></div>'
@@ -102,7 +102,7 @@ export class EscapeView implements ClientMode {
     const boss=s.enemies.find(e=>e.kind==='devourer'),bossHud=root.querySelector<HTMLElement>('.boss-hud')!;bossHud.hidden=!boss;
     if(boss){text('#boss-percent',Math.ceil(boss.hp/boss.maxHp*100)+'%');(root.querySelector('#boss-bar') as HTMLElement).style.width=(boss.hp/boss.maxHp*100)+'%';text('#boss-hint',boss.exposedUntil>s.clock?'흡입구가 열렸다! 화약통을 던지세요':'붉은 경고를 피하고, 물건을 모으세요');}
     const blocked=!s.gate.open&&Math.abs(s.house.z-(s.gate.z-10))<1;
-    text('#objective',s.phase==='camp'?'잠깐의 숨 돌림':boss?'추격자를 떼어 내세요':blocked?'장애물을 부수세요':'집과 함께 앞으로!');
+    text('#objective',s.phase==='camp'?'정비 시간':boss?'고철 포식자를 멈추세요':blocked?'검문소를 뚫으세요':s.stage<3?'검문소까지 '+Math.max(0,Math.ceil(s.gate.z-s.house.z))+'m':'방벽까지 '+Math.max(0,Math.ceil(140-s.house.z))+'m');
     text('#sub-objective',s.phase==='camp'?'공용 부품으로 개조하고 다음 길을 고르세요.':blocked?'갈고리로 뜯거나, 화약통을 던지세요.':s.house.hp/s.house.maxHp<.35?'내구도가 낮아요! 수리 가방을 집으로 가져오세요.':'물건을 회수하고 뒤처진 동료를 구하세요.');
     const crew=root.querySelector<HTMLElement>('.crew-hud')!;
     if(crew.children.length!==s.crew.length)crew.innerHTML=s.crew.map(c=>'<div class="crew-chip" data-crew="'+escape(c.id)+'" style="--crew:'+c.color+'"><i>'+crewPortrait(c.color)+'</i><div><b>'+escape(c.name)+(c.id===p.id?' <small>나</small>':'')+'</b><span><em></em></span></div><small class="crew-state"></small></div>').join('');
@@ -132,7 +132,7 @@ export class EscapeView implements ClientMode {
     this.lastPhase=s.phase;
   }
   private positionLabels():void {
-    const s=this.state!;const rows=s.crew.filter(c=>!c.left).map(c=>{const point=this.scene.project(c.x,c.z,onDeckHeight(c,s)+2.35);return'<div class="name-tag '+(c.downUntil>s.clock?'needs-help':'')+'" style="left:'+point.x+'px;top:'+point.y+'px;--crew:'+c.color+';'+(!point.visible?'display:none;':'')+'">'+(c.downUntil>s.clock?'✚ ':'')+escape(c.name)+'</div>';});
+    const s=this.state!;const rows=s.crew.filter(c=>!c.left).map(c=>{const point=this.scene.projectCrew(c.id,c.downUntil>s.clock?1.3:2.35)??this.scene.project(c.x,c.z,onDeckHeight(c,s)+2.35);return'<div class="name-tag '+(c.downUntil>s.clock?'needs-help':'')+'" style="left:'+point.x+'px;top:'+point.y+'px;--crew:'+c.color+';'+(!point.visible?'display:none;':'')+'">'+(c.downUntil>s.clock?'✚ ':'')+escape(c.name)+'</div>';});
     for(const e of s.enemies)if(e.hp<e.maxHp&&e.kind!=='devourer'){const point=this.scene.project(e.x,e.z,2.2);if(point.visible)rows.push('<div class="enemy-health" style="left:'+point.x+'px;top:'+point.y+'px"><i style="width:'+Math.max(0,e.hp/e.maxHp*100)+'%"></i></div>');}
     if(!s.gate.open){const point=this.scene.project(0,s.gate.z,3.1);if(point.visible)rows.push('<div class="gate-label" style="left:'+point.x+'px;top:'+point.y+'px">막힌 길 <b>'+Math.ceil(s.gate.hp)+'</b></div>');}
     this.labels.innerHTML=rows.join('');

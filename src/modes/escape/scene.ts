@@ -244,8 +244,9 @@ function chunkModel(index:number,biome:string):T.Group {
   }
   for(const side of [-1,1]){
     for(let i=0;i<3;i++){
-      const x=side*((canal?20.7:17)+rand()*1.4),z=-11+i*11+rand()*2,size=7+rand()*2;
-      const pack=foundry?'industrial':'commercial',name=foundry?['building-d','building-h','building-a','building-m'][(i+Math.abs(index))%4]:['building-a','building-c','building-h','building-f'][(i+Math.abs(index))%4];
+      const block=(Math.abs(index)+i+Number(side>0)*2)%4;
+      const x=side*((canal?20.7:17)+(block===2?1.8:0)+rand()*.7),z=-11+i*11+(side>0?1.4:0)+rand(),size=block===1?6.8:block===3?8.6:7.5;
+      const pack=foundry?'industrial':'commercial',name=foundry?['building-d','building-h','building-a','building-m'][block]:['building-c','building-a','building-f','building-h'][block];
       const model=scenery(pack+'/'+name,x,z,size,side<0?Math.PI/2:-Math.PI/2,['#f1dfc6','#d4ddd2','#e5cec0','#cbd3db'][(i+Math.abs(index)+Number(side>0))%4]);
       if(model)g.add(model);else box(g,x,1.8,z,size,3.6,size*.8,foundry?'#9b8777':'#a9aca5');
       // Ground shadows remain readable on integrated GPUs with dynamic shadows disabled.
@@ -267,8 +268,11 @@ function chunkModel(index:number,biome:string):T.Group {
       for(const y of [.2,.35,.5])box(g,side*9.1,y,z+2.36,.85,.035,.03,'#83968b');
     }
     for(let i=0;i<5;i++){
-      const x=side*(13.5+rand()*7),z=rand()*29-14;
-      if(i%2===0){cylinder(g,x,.7,z,.13,.22,1.4,'#6e6557',7);const crown=ball(g,x,2,z,1.1,canal?'#638e82':'#748b71',0);crown.scale.set(1,1.35,.85);ball(g,x+.5,1.9,z+.1,.8,'#8f9e79',0);}
+      const x=side*((canal?17.8:13.5)+rand()*7),z=rand()*29-14;
+      if(foundry){
+        if(i%2===0){for(let p=0;p<3;p++)cylinder(g,x,.23+p*.32,z,.19,.19,1.5+p*.15,'#746e65',8,Math.PI/2);box(g,x,.05,z,1.8,.1,1.9,'#635e54');}
+        else{box(g,x,.5,z,1.1,1,1.15,'#8d7e66');for(const y of [.25,.75])box(g,x,y,z,1.15,.08,1.2,'#4e5a60');}
+      }else if(i%2===0){cylinder(g,x,.7,z,.13,.22,1.4,'#6e6557',7);const crown=ball(g,x,2,z,1.1,canal?'#638e82':'#748b71',0);crown.scale.set(1,1.35,.85);ball(g,x+.5,1.9,z+.1,.8,'#8f9e79',0);}
       else{const rock=ball(g,x,.12,z,.3+rand()*.35,'#9b9b8e',0);rock.scale.y=.55;}
     }
     const notice=streetSign(foundry?'작업 중':canal?'수문 구역':'철거 예정',foundry?'중장비 접근 주의':canal?'미끄럼 주의':'우회로를 이용하세요',2.3,foundry?'#db8654':'#d6bf76');
@@ -281,7 +285,7 @@ interface Effect {root:T.Object3D;event:EscapeEvent;life:number;max:number;kind:
 export class EscapeScene {
   readonly canvas:HTMLCanvasElement;
   private helper=new URLSearchParams(location.search).has('review')&&new URLSearchParams(location.search).has('review-helper');private quality:GraphicsQuality=(localStorage.getItem('houseflight.graphics') as GraphicsQuality)||'standard';private artRevision=0;private renderer:T.WebGLRenderer;private scene=new T.Scene();private camera:T.OrthographicCamera;
-  private light:T.DirectionalLight;private house=houseModel();private crew=new Map<string,WorkerRig>();private objects=new Map<string,T.Group>();private monsters=new Map<string,T.Group>();
+  private biome='';private light:T.DirectionalLight;private house=houseModel();private crew=new Map<string,WorkerRig>();private objects=new Map<string,T.Group>();private monsters=new Map<string,T.Group>();
   private hazards=new Map<string,T.Group>();private chunks=new Map<string,T.Group>();private effects:Effect[]=[];private gate=new T.Group();private exit=new T.Group();private storm=new T.Group();
   private aim:Vec={x:0,z:8};private hovered:{type:string;label:string;color:string}|null=null;private aimRing=ring(.7,'#fff0b2',.8);private trajectory=new T.Line(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#f2e2b4',dashSize:.35,gapSize:.25,transparent:true,opacity:.6}));
   private state:EscapeState|null=null;private received=0;private input={x:0,z:0};private ownId='';private seen=0;private lastHouse=0;
@@ -300,7 +304,7 @@ export class EscapeScene {
     this.light=new T.DirectionalLight('#ffe0ad',2.2);this.light.castShadow=true;this.light.shadow.mapSize.set(512,512);
     Object.assign(this.light.shadow.camera,{left:-27,right:27,top:30,bottom:-24,near:1,far:90});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.045;
     this.scene.add(this.light,this.light.target);this.scene.add(this.house.root);this.scene.add(this.aimRing,this.trajectory);
-    const fill=new T.DirectionalLight('#8ad6da',.7);fill.position.set(-15,8,-20);this.scene.add(fill);
+    const fill=new T.DirectionalLight('#8ad6da',.7);fill.position.set(-15,8,-20);fill.name='sky-fill';this.scene.add(fill);
     this.ash=new T.InstancedMesh(geometry('ash',()=>new T.IcosahedronGeometry(.035,0)),mat('#ead9b4'),65);this.ash.instanceMatrix.setUsage(T.DynamicDrawUsage);this.scene.add(this.ash);
     box(this.gate,-4,1.3,0,.7,2.6,.8,'#695b47');box(this.gate,4,1.3,0,.7,2.6,.8,'#695b47');
     for(let i=0;i<6;i++)box(this.gate,-3.4+i*1.36,1.3,0,1.1,.5,.55,i%2?'#d7bd78':'#75644f',0,0,.15);
@@ -334,6 +338,7 @@ export class EscapeScene {
     const v=new T.Vector3(x,y,z).project(this.camera);
     return{x:(v.x*.5+.5)*this.width,y:(-v.y*.5+.5)*this.height,visible:Math.abs(v.x)<1&&Math.abs(v.y)<1&&v.z<1};
   }
+  projectCrew(id:string,height=2.35):{x:number;y:number;visible:boolean}|null{const rig=this.crew.get(id);return rig?this.project(rig.root.position.x,rig.root.position.z,rig.root.position.y+height):null;}
   aimHint():{type:string;label:string;color:string}|null{return this.hovered;}
   world(clientX:number,clientY:number):Vec {
     this.hovered=null;
@@ -378,8 +383,8 @@ export class EscapeScene {
   }
   private render=():void=>{
     if(this.disposed)return;
-    if(performance.now()-this.last<1000/(this.helper?4:this.quality==='economy'?(this.state?20:8):this.state?(document.hasFocus()||new URLSearchParams(location.search).has('record')?60:12):15)){this.raf=requestAnimationFrame(this.render);return;}
-    const now=performance.now(),rawMs=now-this.last,dt=Math.min(rawMs/1000,.06);this.last=now;this.elapsed+=dt;
+    if(performance.now()-this.last<1000/(this.helper?1:this.quality==='economy'?(this.state?20:8):this.state?(document.hasFocus()||new URLSearchParams(location.search).has('record')?60:12):15)){this.raf=requestAnimationFrame(this.render);return;}
+    const now=performance.now(),rawMs=now-this.last,dt=Math.min(rawMs/1000,.25);this.last=now;this.elapsed+=dt;
     if(this.state){this.frameCount++;this.totalFrameMs+=rawMs;}
     const s=this.state,z=s?.house.z??0,clock=s?.clock??this.elapsed;
     this.viewZ+=(z-this.viewZ)*Math.min(1,dt*8);
@@ -391,6 +396,9 @@ export class EscapeScene {
     this.house.engine.rotation.z=Math.sin(clock*12)*.018;
     this.storm.visible=!!s;this.storm.position.z=s?.stormZ??-40;for(let i=1;i<this.storm.children.length;i++)this.storm.children[i].position.y=3+Math.sin(clock*.7+i)*1.2;this.exit.visible=!!s&&s.stage===3;
     const biome=s?.biome??'quarry',index=Math.floor(z/30);
+    if(this.biome!==biome){this.biome=biome;const palette=biome==='canal'?{sky:'#a6bcc4',sun:'#dce9e4',fill:'#98bed0'}:biome==='foundry'?{sky:'#bca18c',sun:'#ffd0a0',fill:'#ada4ac'}:{sky:'#b4b9b1',sun:'#ffe0ad',fill:'#8ad6da'};
+      (this.scene.background as T.Color).set(palette.sky);(this.scene.fog as T.FogExp2).color.set(palette.sky);this.light.color.set(palette.sun);(this.scene.getObjectByName('sky-fill') as T.DirectionalLight).color.set(palette.fill);
+    }
     const wanted=new Set<string>();
     for(let i=index-1;i<=index+2;i++){
       const key=i+biome+this.artRevision;wanted.add(key);if(!this.chunks.has(key)){const chunk=chunkModel(i,biome);chunk.position.z=i*30;this.scene.add(chunk);this.chunks.set(key,chunk);}
@@ -408,11 +416,14 @@ export class EscapeScene {
         rig.root.position.z+=(tz-rig.root.position.z)*Math.min(1,dt*(own?22:13));
         const deck=onDeck(p,s.house),ground=deck?1.61:0,down=p.downUntil>s.clock;
         const targetY=ground+(p.dodgeUntil>s.clock?Math.sin(clamp((p.dodgeUntil-s.clock)/.23,0,1)*Math.PI)*.35:0);rig.root.position.y+=(targetY-rig.root.position.y)*Math.min(1,dt*17);
-        const angle=own?Math.atan2(this.aim.x-rig.root.position.x,this.aim.z-rig.root.position.z):Math.atan2(p.aimX,p.aimZ);rig.root.rotation.y=angle;rig.body.rotation.z=down?Math.PI/2:Math.sin(p.walk*3)*.04+((rig.root.userData.hitUntil??0)>this.elapsed?Math.sin(clock*48)*.14:0);
-        rig.body.position.y=down?-.45:Math.abs(Math.sin(p.walk*3))*.035;
-        const movement=own&&Math.hypot(this.input.x,this.input.z)>.05?clock*15:p.walk*3.6;
-        const moving=own?Math.hypot(this.input.x,this.input.z)>.05:Math.abs(p.walk-(rig.root.userData.walk??p.walk))>.001;
-        for(let i=0;i<2;i++){rig.legs[i].rotation.x=down?1.2:moving?Math.sin(movement+i*Math.PI)*.65:0;rig.arms[i].rotation.x=p.carry?-1.55:moving?Math.sin(movement+i*Math.PI)*.4:0;}
+        const angle=own?Math.atan2(this.aim.x-rig.root.position.x,this.aim.z-rig.root.position.z):Math.atan2(p.aimX,p.aimZ);rig.root.rotation.y=angle;
+        if(Math.abs(p.walk-(rig.root.userData.walk??p.walk))>.001)rig.root.userData.movingUntil=now+160;
+        const moving=!down&&(own?Math.hypot(this.input.x,this.input.z)>.05:now<(rig.root.userData.movingUntil??0));
+        const weight=T.MathUtils.lerp(rig.root.userData.gaitWeight??0,moving?1:0,1-Math.exp(-dt*15));rig.root.userData.gaitWeight=weight;
+        const movement=(rig.root.userData.gait??0)+dt*velocity*3.6*weight;rig.root.userData.gait=movement;
+        rig.body.rotation.z=down?Math.PI/2:Math.sin(movement*.8)*.04*weight+((rig.root.userData.hitUntil??0)>this.elapsed?Math.sin(clock*48)*.14:0);
+        rig.body.position.y=down?-.45:Math.abs(Math.sin(movement))*.035*weight;
+        for(let i=0;i<2;i++){rig.legs[i].rotation.x=down?1.2:Math.sin(movement+i*Math.PI)*.65*weight;rig.arms[i].rotation.x=p.carry?-1.55:Math.sin(movement+i*Math.PI)*.4*weight;}
         if(s.clock-p.hookReady>-.48&&s.clock-p.hookReady<-.26)rig.arms[1].rotation.x=-1.6;
         rig.root.userData.walk=p.walk;rig.root.userData.pick={x:p.x,z:p.z};rig.root.userData.hint={type:'crew',label:'동료 구조 · 좌클릭',color:'#9cddaa'};
         rig.root.visible=p.invulnerableUntil<=s.clock||Math.floor(clock*12)%2===0||down;
@@ -453,9 +464,15 @@ export class EscapeScene {
       for(const h of s.hazards){let g=this.hazards.get(h.id);if(!g){g=new T.Group();
         const r=ring(h.radius,'#ff7659',.9);(r.material as T.Material).depthTest=false;r.renderOrder=3;g.add(r);
         const disc=new T.Mesh(geometry('disc',()=>new T.CircleGeometry(1,48)),new T.MeshBasicMaterial({color:'#f67650',transparent:true,opacity:.13,depthWrite:false,depthTest:false,side:T.DoubleSide}));disc.rotation.x=-Math.PI/2;disc.scale.setScalar(h.radius);disc.renderOrder=2;g.add(disc);
-        if(h.kind==='charge'){const line=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(0,0,0),new T.Vector3(h.toX-h.x,0,h.toZ-h.z)]),new T.LineBasicMaterial({color:'#ffb27c'}));g.add(line);}
+        if(h.kind==='charge'){
+          const dx=h.toX-h.x,dz=h.toZ-h.z,length=Math.hypot(dx,dz),path=new T.Group();path.rotation.y=Math.atan2(dx,dz);path.position.set(dx/2,.006,dz/2);
+          const strip=new T.Mesh(new T.PlaneGeometry(h.radius*2,length),new T.MeshBasicMaterial({color:'#f67650',transparent:true,opacity:.18,depthWrite:false,depthTest:false,side:T.DoubleSide}));strip.rotation.x=-Math.PI/2;strip.renderOrder=2;path.add(strip);g.add(path);
+          const end=ring(h.radius,'#ffb27c',.8);end.position.set(dx,.01,dz);(end.material as T.Material).depthTest=false;end.renderOrder=3;g.add(end);
+          const line=new T.Line(new T.BufferGeometry().setFromPoints([new T.Vector3(0,.02,0),new T.Vector3(dx,.02,dz)]),new T.LineDashedMaterial({color:'#ffe0a2',dashSize:.45,gapSize:.35,depthTest:false}));line.computeLineDistances();line.renderOrder=3;g.add(line);
+        }
+        const timer=new T.Mesh(geometry('disc',()=>new T.CircleGeometry(1,48)),new T.MeshBasicMaterial({color:'#ffab70',transparent:true,opacity:.22,depthWrite:false,depthTest:false,side:T.DoubleSide}));timer.rotation.x=-Math.PI/2;timer.position.y=.015;timer.renderOrder=3;g.add(timer);g.userData.timer=timer;g.userData.duration=Math.max(.01,h.at-clock);
         this.scene.add(g);this.hazards.set(h.id,g);
-      }g.position.set(h.x,onDeck(h,s.house)?1.69:.1,h.z);g.scale.setScalar(1+Math.sin(clock*18)*.025);}
+      }g.position.set(h.x,onDeck(h,s.house)?1.69:.1,h.z);const progress=clamp(1-(h.at-clock)/g.userData.duration,0,1);(g.userData.timer as T.Mesh).scale.setScalar(h.radius*(.12+progress*.85));}
       for(const[key,g]of this.hazards)if(!hazards.has(key)){this.remove(g);this.hazards.delete(key);}
     }else{
       this.gate.visible=false;

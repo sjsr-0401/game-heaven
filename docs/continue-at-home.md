@@ -1,0 +1,61 @@
+# 집에서 이어하기 · 집째로 도망
+
+현재 기본 모드는 2–4인 온라인 협동 액션입니다. 이전 디펜스 모드는 보존만 하며 게임 목록에 등록하지 않습니다. 이 저장소는 게임 소스이며, 상시 접속 가능한 서버는 아직 배포하지 않았습니다.
+
+## 소스 받기
+
+개인 PC에 Node 24와 Git이 있는 경우:
+
+~~~sh
+git clone https://github.com/sjsr-0401/game-heaven.git
+cd game-heaven
+npm ci
+npm run build
+npm test
+npm start
+~~~
+
+이미 받은 폴더가 있다면 자신의 변경을 먼저 확인한 뒤 `git pull --ff-only`로 갱신합니다. 회사 폴더에는 이전 버전이 남아 있을 수 있으므로 GitHub `main`을 기준으로 이어갑니다.
+
+http://localhost:3000 에서 방을 만듭니다. 같은 LAN의 다른 PC는 서버 PC의 IP와 3000 포트로 들어와 방 코드를 입력합니다. 방 코드만으로 서로 다른 집의 PC가 직접 연결되는 구조는 아닙니다. 인터넷 플레이에는 공개 접속 가능한 Node 서버와 HTTPS/WSS가 필요합니다. 서버는 `PORT`, `HOST` 환경변수를 읽으며, 브라우저와 WebSocket을 같은 도메인으로 제공합니다.
+
+회사 환경에서는 Node·Java·개발 서버·자동 브라우저를 로컬에서 실행하지 않습니다. 빌드와 검증은 GitHub Actions에서 수행했습니다. 사용자가 집이라고 알려주면 개인 PC에서의 실행을 진행할 수 있습니다.
+
+## 영상과 검증
+
+[Cloud review 실행 목록](https://github.com/sjsr-0401/game-heaven/actions/workflows/cloud-review.yml)에서 녹색으로 완료된 실행을 선택합니다.
+
+- `houseflight-review`: 영상이 내장된 `review.html`, 하이라이트 MP4, 편집 전 전체 녹화, 실행 캡처, `verification.json`.
+- `houseflight-stills`: 작은 용량의 화면 캡처와 검증 JSON.
+- `houseflight-build`: 브라우저·서버의 빌드 결과. 소스 전체와 설치된 의존성은 포함하지 않습니다.
+
+HTML은 게임 서버 없이 재생합니다. 처음에는 음소거이며, 소리를 켜면 실제 게임에서 녹음한 효과음이 나옵니다. Actions 산출물 보관 기간은 영상·화면 30일, 빌드 14일입니다. Git에 기록된 소스와 라이선스는 그대로 유지됩니다.
+
+검증용 플레이어는 공개 상태를 읽고 실제 키보드·마우스로 조작합니다. 체력·재화·무작위 결과를 바꾸는 기능은 없습니다. 자동 완주는 사람의 재미 평가와 실제 가정용 인터넷 검증을 대신하지 않습니다.
+
+## 주요 파일
+
+| 작업 | 파일 |
+| --- | --- |
+| 이동·갈고리·투척·구조·적·보스·한 판 진행 | `server/modes/escape.ts` |
+| 상태 타입·물체·개조 수치·공유 좌표 규칙 | `shared/escape.ts` |
+| 집·인물·적·환경·카메라·애니메이션 | `src/modes/escape/scene.ts` |
+| 외부 배경 모델 로딩·한글 간판 | `src/modes/escape/world-art.ts` |
+| 입력·HUD·정비·결과 화면 | `src/modes/escape/view.ts`, `game.css` |
+| 메뉴·방 생성·참가·연결 상태 | `src/main.ts`, `src/core/transport.ts` |
+| 효과음·발소리·녹음 | `src/core/audio.ts` |
+| 방·준비·재접속·방장 이전 | `server/rooms.ts` |
+| 실제 브라우저 녹화·HTML 생성 | `scripts/review.ts`, `scripts/build-review.mjs` |
+| 라이선스·파일 해시 | `public/art/provenance.json`, 각 리소스의 LICENSE/OFL 파일 |
+
+재접속 토큰은 비공개 연결 정보입니다. 스냅샷·영상 메타데이터·로그에 넣지 않습니다. `window.__review`는 검토 주소에서만 제공하는 읽기 인터페이스로 유지합니다.
+
+## 다음 플레이에서 확인할 것
+
+1. 친구 2명과 처음 설명 없이 시작해 회수·투척·장착이 구분되는지 확인합니다.
+2. 4명일 때 같은 물체를 잡으려는 경쟁, 동료 구조, 공용 부품 개조가 즐거운 선택을 만드는지 확인합니다.
+3. 서로 다른 집의 네트워크에서 재접속·지연·조준을 확인합니다.
+4. 실제 GPU에서 표준·고화질의 화면 속도와 해상도를 확인합니다. 클라우드의 소프트웨어 그래픽 성능을 개인 PC 성능으로 일반화하지 않습니다.
+5. 현재 자동 완주는 약 4분입니다. 사람의 첫 플레이 길이와 난이도를 관찰한 뒤 한 판 길이를 조정합니다.
+
+새 모드를 늘리기 전에 이 플레이의 조작과 협동 재미를 먼저 검토합니다. 외부 상용 게임의 에셋은 추출하지 않으며, 포함한 Kenney CC0와 Do Hyeon OFL 원문 라이선스를 보존합니다.
