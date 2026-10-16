@@ -1,0 +1,26 @@
+name: Vendor licensed world art
+on:
+  push:
+    branches: [main]
+    paths: ['scripts/vendor-art.mjs', '.github/workflows/vendor-art.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  vendor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - name: Import verified CC0 models and OFL font as repository blobs
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: node scripts/vendor-art.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: licensed-art-manifest
+          path: artifacts/art-blobs.json
+          retention-days: 30
