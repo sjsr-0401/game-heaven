@@ -1,0 +1,139 @@
+{
+  "imported": "2026-10-16",
+  "models": {
+    "author": "Kenney",
+    "license": "CC0-1.0",
+    "sources": [
+      "https://kenney.nl/assets/city-kit-industrial",
+      "https://kenney.nl/assets/city-kit-commercial"
+    ]
+  },
+  "font": {
+    "name": "Do Hyeon",
+    "license": "OFL-1.1",
+    "author": "The Do Hyeon Project Authors",
+    "source": "https://github.com/google/fonts/tree/c6f97839901e4707d3792b1c50f3f92eb66b3d2f/ofl/dohyeon"
+  },
+  "files": [
+    {
+      "path": "public/art/kenney-industrial/License.txt",
+      "bytes": 708,
+      "sha256": "60a8c5c31191256ec9779dc18745dea6d69c46f4b29703459ce064c1765a59ea",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/Textures/colormap.png",
+      "bytes": 11986,
+      "sha256": "950f4f891ebd05a2affac810e6eeb0fea1511bc39039b65a3cbf2e17d17bc6a2",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/building-a.glb",
+      "bytes": 177316,
+      "sha256": "0e6ef8eb1e1bdbb9d06b5496b5daf3066e00eaf74b3fcd61b74072116a1c86cf",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/building-d.glb",
+      "bytes": 100768,
+      "sha256": "72b9e9e29986df0778ffa7c56e2f92fcfadfaa0f89bf167603877db4f38a789e",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/building-h.glb",
+      "bytes": 63644,
+      "sha256": "5a6a6c6824467972ba00b5a3c3cbb19da6e96673bc4e42daf1f09cfd4d2ed0e1",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/building-i.glb",
+      "bytes": 73848,
+      "sha256": "12d9be598becf2b6d3758d23aba6c573ca2701fca5e77870d2ee5645647765ca",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/building-m.glb",
+      "bytes": 138920,
+      "sha256": "526881cb1851120a60195f76bd4d8c1963653cdda66e4d1d53f085b3395fb8a9",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/shipping-container-a.glb",
+      "bytes": 36624,
+      "sha256": "7b2d5ca874c8e659ee6cfd1614f0470b70410b2ddc7620ac83b8954dedeb861d",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/water-tower.glb",
+      "bytes": 93836,
+      "sha256": "11ac7ae19f32ce889bfe7a9c8e78c8ce8c77b7a76b52fd4ffa439a022ea2ef40",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/detail-tank.glb",
+      "bytes": 31436,
+      "sha256": "9e955732e4ef9ccff4a4d6967d29d8a7d2f9ed16c903923f2568216d9f0b50d2",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-industrial/chimney-small.glb",
+      "bytes": 10536,
+      "sha256": "22b09845e3df85102278eb440a1cbf9751790d5133a847469e112c55f8b44ff2",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip"
+    },
+    {
+      "path": "public/art/kenney-commercial/License.txt",
+      "bytes": 708,
+      "sha256": "c38cee408d022e57e44e49f1cd655c2fe0dc881a07b881276b795215cdc0de69",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip"
+    },
+    {
+      "path": "public/art/kenney-commercial/Textures/colormap.png",
+      "bytes": 11002,
+      "sha256": "191bec3889aaaca5018380038fecc129ebb5c2182879a099b7b538b3fa050b5d",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip"
+    },
+    {
+      "path": "public/art/kenney-commercial/building-a.glb",
+      "bytes": 108936,
+      "sha256": "5cf220f90ee3f21e7abe38055ca409a48aa8ef1d5ffab6e2deb99e5a5e1ed5e0",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip"
+    },
+    {
+      "path": "public/art/kenney-commercial/building-c.glb",
+      "bytes": 102788,
+      "sha256": "f6887608a95a165503561730252c30506938803731c6546efca12bd47b1666bd",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip"
+    },
+    {
+      "path": "public/art/kenney-commercial/building-f.glb",
+      "bytes": 148952,
+      "sha256": "633a25f7fb3ccf98e304a885a36ed900aecee5bde7ecd554729dec753cceea78",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip"
+    },
+    {
+      "path": "public/art/kenney-commercial/building-h.glb",
+      "bytes": 127384,
+      "sha256": "6881613ce218bb33a0f56137d4d33b00d307c47e518fbb21ccba1083efbea896",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip"
+    },
+    {
+      "path": "public/art/kenney-commercial/detail-awning.glb",
+      "bytes": 5528,
+      "sha256": "386978daf81dc11ac601638f19a41918a391ff882a8c518ae5a3215a1bed4d8a",
+      "source": "https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip"
+    },
+    {
+      "path": "public/art/fonts/DoHyeon-Regular.ttf",
+      "bytes": 879764,
+      "sha256": "35644be7f28e0a68a447b1f7af351dcde5674b870f24f7b5f43e26d00b4ab653",
+      "source": "https://raw.githubusercontent.com/google/fonts/c6f97839901e4707d3792b1c50f3f92eb66b3d2f/ofl/dohyeon/DoHyeon-Regular.ttf"
+    },
+    {
+      "path": "public/art/fonts/OFL.txt",
+      "bytes": 4347,
+      "sha256": "de5ff32211a4340b01477af39ee339d639438955e409f79b666d4b9207f3c92c",
+      "source": "https://raw.githubusercontent.com/google/fonts/c6f97839901e4707d3792b1c50f3f92eb66b3d2f/ofl/dohyeon/OFL.txt"
+    }
+  ]
+}

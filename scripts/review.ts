@@ -24,7 +24,7 @@ async function newPage(name:string,record=false):Promise<Page>{
   const focus=await context.newCDPSession(page);await focus.send('Emulation.setFocusEmulationEnabled',{enabled:true});
   page.on('pageerror',e=>errors.push(e.message));page.on('console',message=>{if(message.type()==='error'&&!message.text().includes('favicon'))errors.push(message.text());});
   if(record)videoStart=Date.now();
-  await page.goto(base+'/?review=1'+(record?'&record=1':'&graphics=economy&review-helper=1'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
+  await page.goto(base+'/?review=1'+(record?'&record=1&graphics=standard':'&graphics=economy&review-helper=1'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
   return page;
 }
 async function caption(title:string,description:string):Promise<void>{await main.evaluate(({title,description})=>window.__review!.caption(title,description),{title,description});}

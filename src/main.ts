@@ -1,7 +1,7 @@
 import './style.css';
 import {Transport} from './core/transport.js';
 import {setSoundEnabled,playUiSound,finishAudioRecording} from './core/audio.js';
-import {EscapeScene} from './modes/escape/scene.js';
+import {EscapeScene,type GraphicsQuality} from './modes/escape/scene.js';
 import {EscapeView} from './modes/escape/view.js';
 import {ESCAPE_ID,type EscapeState} from '../shared/escape.js';
 import type {RoomSnapshot,ServerMessage} from '../shared/protocol.js';
@@ -80,8 +80,10 @@ async function copyCode():Promise<void>{if(!room)return;try{await navigator.clip
 $('copy-room').onclick=copyCode;$('leave-room').onclick=()=>send({type:'leave'});
 $('screen').addEventListener('return-lobby',()=>send({type:'lobby'}));
 $('sound-toggle').onclick=()=>{sound=!sound;setSoundEnabled(sound);$('sound-toggle').classList.toggle('sound-on',sound);$('sound-toggle').setAttribute('aria-label',sound?'효과음 끄기':'효과음 켜기');playUiSound();};
-const graphicsParam=new URLSearchParams(location.search).get('graphics');if(graphicsParam==='economy')localStorage.setItem('houseflight.graphics','economy');
-let economy=localStorage.getItem('houseflight.graphics')==='economy';$('graphics-toggle').textContent=economy?'절전':'고화질';$('graphics-toggle').onclick=()=>{economy=!economy;localStorage.setItem('houseflight.graphics',economy?'economy':'high');$('graphics-toggle').textContent=economy?'절전':'고화질';menu?.setEconomy(economy);view?.scene.setEconomy(economy);};
+const qualities:GraphicsQuality[]=['standard','high','economy'];let quality:GraphicsQuality=(localStorage.getItem('houseflight.graphics') as GraphicsQuality)||'standard';
+const qualityLabel={standard:'표준',high:'고화질',economy:'절전'};
+$('graphics-toggle').textContent=qualityLabel[quality];$('graphics-toggle').setAttribute('aria-label','그래픽 품질 전환');
+$('graphics-toggle').onclick=()=>{quality=qualities[(qualities.indexOf(quality)+1)%qualities.length];localStorage.setItem('houseflight.graphics',quality);$('graphics-toggle').textContent=qualityLabel[quality];menu?.setQuality(quality);view?.scene.setQuality(quality);};
 const help=$<HTMLDialogElement>('help-dialog');$('help').onclick=()=>help.showModal();help.querySelector('.close-dialog')!.addEventListener('click',()=>help.close());help.querySelector('.close-help')!.addEventListener('click',()=>help.close());
 help.addEventListener('click',e=>{if(e.target===help)help.close();});
 entry();
