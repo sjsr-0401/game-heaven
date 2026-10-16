@@ -1,0 +1,14 @@
+node_modules/
+dist/
+dist-server/
+.env
+.env.*
+!.env.example
+artifacts/raw/
+artifacts/*.png
+artifacts/*.webm
+artifacts/*.mp4
+artifacts/*.html
+!artifacts/.gitkeep
+*.log
+.DS_Store
