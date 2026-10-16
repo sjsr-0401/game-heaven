@@ -88,6 +88,6 @@ test('production commands can complete seeded two, three and four-player expedit
       }g.tick(1/30);
     }
     results.push({n,seed,phase:g.state.phase,distance:Math.round(g.state.distance),hp:Math.round(g.state.house.hp),seconds:Math.round(g.state.clock),boss:g.state.bossDefeated,stats:g.state.crew.map(p=>p.stats)});
-    assert.ok(g.finished());assert.ok(Number.isFinite(g.state.house.hp));assert.ok(g.state.crew.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)));
+    assert.equal(g.state.phase,'won',n+'P seed '+seed+' must reach a genuine victory');assert.equal(g.state.bossDefeated,true);assert.ok(Number.isFinite(g.state.house.hp));assert.ok(g.state.crew.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)));
   }console.log('EXPEDITION_SAMPLES '+JSON.stringify(results));
 });

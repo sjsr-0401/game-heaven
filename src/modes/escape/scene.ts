@@ -20,13 +20,27 @@ function cylinder(g:T.Object3D,x:number,y:number,z:number,top:number,bottom:numb
 function ball(g:T.Object3D,x:number,y:number,z:number,r:number,color:string,detail=1):T.Mesh {
   const m=new T.Mesh(geometry('ico'+detail,()=>new T.IcosahedronGeometry(1,detail)),mat(color));m.position.set(x,y,z);m.scale.setScalar(r);m.castShadow=true;g.add(m);return m;
 }
-function batch(group:T.Group):T.Group {
-  group.updateMatrixWorld(true);const buckets=new Map<T.Material,T.BufferGeometry[]>();
-  group.traverse(o=>{if(o instanceof T.Mesh&&o.geometry&&!(o.material instanceof Array)){
-    const list=buckets.get(o.material)??[];const original=o.geometry.clone();const compatible=original.index?original.toNonIndexed():original;compatible.deleteAttribute('uv');compatible.applyMatrix4(o.matrixWorld);list.push(compatible);if(compatible!==original)original.dispose();buckets.set(o.material,list);
-  }});
+// Static pieces share vertex colors, while lamps retain their emissive materials.
+const solidMaterial=new T.MeshStandardMaterial({color:'#ffffff',vertexColors:true,roughness:.85,metalness:.08,flatShading:true});
+materials.set('vertex-colors',solidMaterial);
+function batch(group:T.Group,direct=false):T.Group {
+  group.updateMatrixWorld(true);const buckets=new Map<T.Material,T.BufferGeometry[]>(),meshes:T.Mesh[]=[];
+  const collect=(o:T.Object3D)=>{if(o instanceof T.Mesh&&o.material instanceof T.MeshStandardMaterial)meshes.push(o);};
+  if(direct)group.children.forEach(collect);else group.traverse(collect);
+  for(const mesh of meshes){
+    const material=mesh.material as T.MeshStandardMaterial,target=material.emissiveIntensity>0?material:solidMaterial;
+    const list=buckets.get(target)??[],original=mesh.geometry.clone(),geo=original.index?original.toNonIndexed():original;
+    geo.deleteAttribute('uv');
+    if(target===solidMaterial){
+      const count=geo.getAttribute('position').count,existing=geo.getAttribute('color'),colors=new Float32Array(count*3);
+      for(let i=0;i<count;i++){colors[i*3]=material.color.r*(existing?.getX(i)??1);colors[i*3+1]=material.color.g*(existing?.getY(i)??1);colors[i*3+2]=material.color.b*(existing?.getZ(i)??1);}
+      geo.setAttribute('color',new T.BufferAttribute(colors,3));
+    }
+    mesh.updateMatrix();geo.applyMatrix4(direct?mesh.matrix:mesh.matrixWorld);list.push(geo);if(geo!==original)original.dispose();buckets.set(target,list);
+  }
   const merged=new T.Group();
   for(const [material,list] of buckets){const geo=mergeGeometries(list,false);if(geo){const m=new T.Mesh(geo,material);m.castShadow=true;m.receiveShadow=true;merged.add(m);}list.forEach(g=>g.dispose());}
+  if(direct){meshes.forEach(m=>group.remove(m));group.add(...merged.children.slice());return group;}
   return merged;
 }
 function seeded(seed:number):()=>number {return()=>{seed=(Math.imul(seed,1664525)+1013904223)|0;return(seed>>>0)/4294967296;};}
@@ -57,6 +71,7 @@ function worker(color:string,index:number):WorkerRig {
   }
   const shadow=new T.Mesh(geometry('disc',()=>new T.CircleGeometry(.65,24)),new T.MeshBasicMaterial({color:'#122b30',transparent:true,opacity:.22,depthWrite:false}));
   shadow.rotation.x=-Math.PI/2;shadow.position.y=.015;root.add(shadow);
+  for(const part of [body,head,...arms,...legs])batch(part,true);
   return{root,body,arms,legs,head,lamp,shadow};
 }
 function propModel(kind:PropKind,pad=false):T.Group {
@@ -95,11 +110,14 @@ function monster(e:Enemy):T.Group {
     cylinder(g,0,.7,0,.42,.65,1.1,c,7);ball(g,0,1.4,0,.46,'#343e40');
     box(g,0,1.38,-.39,.65,.18,.13,'#f2b56c',0,0,0,1);
     for(const x of [-.42,.42]){cylinder(g,x,.25,0,.18,.18,.5,'#343e40',7);box(g,x,.06,-.12,.4,.18,.5,'#343e40');}
-    if(e.kind==='rammer'){box(g,0,1,-.4,1.2,1.1,.3,'#74665a');for(const x of [-.5,.5])box(g,x,1.4,-.65,.18,.35,.6,'#d5c0a0',-.3);}
+    if(e.kind==='rammer'){for(const x of [-.5,.5])box(g,x,1.4,-.65,.18,.35,.6,'#d5c0a0',-.3);}
     if(e.kind==='snatcher'){for(const x of [-.65,.65])box(g,x,.8,-.25,.18,.15,.95,'#b1a6b7',0,x*.6);box(g,0,1.88,0,.15,.4,.12,'#cbbb8f');}
     if(e.kind==='scrapper'){for(const x of [-.55,.55])box(g,x,.7,-.13,.18,.6,.18,'#c3b59b',.5);}
   }
-  return batch(g);
+  const result=batch(g);
+  if(e.kind==='rammer'){const armor=box(result,0,1,-.4,1.2,1.1,.3,'#74665a');result.userData.armor=armor;}
+  if(e.kind==='devourer'){const material=new T.MeshStandardMaterial({color:'#87efd5',emissive:'#77ffe0',emissiveIntensity:1.1,roughness:.4});const core=new T.Mesh(new T.CylinderGeometry(.78,.78,.18,10),material);core.rotation.x=Math.PI/2;core.position.set(0,1.6,-2.25);result.add(core);result.userData.core=core;}
+  return result;
 }
 interface HouseRig{root:T.Group;cabin:T.Group;wheels:T.Group[];engine:T.Group;chimney:T.Vector3}
 function houseModel():HouseRig {
@@ -153,6 +171,7 @@ function houseModel():HouseRig {
   const engine=new T.Group();engine.position.set(0,1.2,4);root.add(engine);
   cylinder(engine,0,0,0,.63,.63,1.7,'#4f736d',12,Math.PI/2);cylinder(engine,0,0,.9,.42,.42,.1,'#83e6ce',12,Math.PI/2,0,.8);
   box(engine,0,.65,0,1.2,.25,1.5,'#b89661');for(const x of [-.8,.8])cylinder(engine,x,0,0,.13,.13,1.5,'#beac81',8);
+  for(const wheel of wheels)batch(wheel,true);batch(engine,true);
   return{root,cabin,wheels,engine,chimney:new T.Vector3(1.2,5.9,1.35)};
 }
 function chunkModel(index:number,biome:string):T.Group {
@@ -188,7 +207,7 @@ function chunkModel(index:number,biome:string):T.Group {
 interface Effect {root:T.Object3D;event:EscapeEvent;life:number;max:number;kind:'beam'|'burst'|'ring'}
 export class EscapeScene {
   readonly canvas:HTMLCanvasElement;
-  private economy=new URLSearchParams(location.search).get('graphics')==='economy'||localStorage.getItem('houseflight.graphics')==='economy';private renderer:T.WebGLRenderer;private scene=new T.Scene();private camera:T.OrthographicCamera;
+  private helper=new URLSearchParams(location.search).has('review')&&new URLSearchParams(location.search).has('review-helper');private economy=new URLSearchParams(location.search).get('graphics')==='economy'||localStorage.getItem('houseflight.graphics')==='economy';private renderer:T.WebGLRenderer;private scene=new T.Scene();private camera:T.OrthographicCamera;
   private light:T.DirectionalLight;private house=houseModel();private crew=new Map<string,WorkerRig>();private objects=new Map<string,T.Group>();private monsters=new Map<string,T.Group>();
   private hazards=new Map<string,T.Group>();private chunks=new Map<string,T.Group>();private effects:Effect[]=[];private gate=new T.Group();private exit=new T.Group();private storm=new T.Group();
   private aim:Vec={x:0,z:8};private aimRing=ring(.7,'#fff0b2',.8);private trajectory=new T.Line(new T.BufferGeometry(),new T.LineDashedMaterial({color:'#f2e2b4',dashSize:.35,gapSize:.25,transparent:true,opacity:.6}));
@@ -205,14 +224,14 @@ export class EscapeScene {
     this.scene.background=new T.Color('#879e91');this.scene.fog=new T.FogExp2('#879e91',.011);
     this.camera=new T.OrthographicCamera(-25,25,17,-17,.1,150);
     this.scene.add(new T.HemisphereLight('#ffedd0','#456b6c',1.6));
-    this.light=new T.DirectionalLight('#ffdb9e',2.7);this.light.castShadow=true;this.light.shadow.mapSize.set(1024,1024);
+    this.light=new T.DirectionalLight('#ffdb9e',2.7);this.light.castShadow=true;this.light.shadow.mapSize.set(768,768);
     Object.assign(this.light.shadow.camera,{left:-27,right:27,top:30,bottom:-24,near:1,far:90});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.045;
     this.scene.add(this.light,this.light.target);this.scene.add(this.house.root);this.scene.add(this.aimRing,this.trajectory);
     const fill=new T.DirectionalLight('#8ad6da',.7);fill.position.set(-15,8,-20);this.scene.add(fill);
     this.ash=new T.InstancedMesh(geometry('ash',()=>new T.IcosahedronGeometry(.035,0)),mat('#ead9b4'),65);this.ash.instanceMatrix.setUsage(T.DynamicDrawUsage);this.scene.add(this.ash);
     box(this.gate,-4,1.3,0,.7,2.6,.8,'#695b47');box(this.gate,4,1.3,0,.7,2.6,.8,'#695b47');
     for(let i=0;i<6;i++)box(this.gate,-3.4+i*1.36,1.3,0,1.1,.5,.55,i%2?'#d7bd78':'#75644f',0,0,.15);
-    box(this.gate,0,2.1,0,3,.6,.22,'#8c533c');this.scene.add(this.gate);
+    box(this.gate,0,2.1,0,3,.6,.22,'#8c533c');batch(this.gate,true);this.scene.add(this.gate);
     const goal=new T.Group();
     for(const x of [-6.4,6.4]){
       box(goal,x,3.2,140,1.4,6.4,1.6,'#9b9c82');box(goal,x,6.55,140,1.8,.35,1.9,'#5b7d69');
@@ -264,10 +283,10 @@ export class EscapeScene {
     }
     if(['hit','explode','kill','repair','rescue','install','upgrade','dodge','pad','ping'].includes(e.type)){
       const count=e.type==='explode'?20:e.type==='hit'?7:12;
-      const group=new T.Group();group.position.set(e.x,atY+.5,e.z);
       const color=e.type==='repair'||e.type==='rescue'?'#a3ebae':e.prop==='battery'?'#7bfff0':e.type==='hit'&&e.text==='crew'?'#ec8b70':'#ffcf85';
-      for(let i=0;i<count;i++){const a=i/count*Math.PI*2;const m=ball(group,Math.cos(a)*.12,Math.sin(i*3)*.1,Math.sin(a)*.12,e.type==='explode'?.14:.08,color,0);m.userData.velocity=new T.Vector3(Math.cos(a)*(2+i%3),1.5+i%4*.6,Math.sin(a)*(2+i%3));}
-      this.scene.add(group);this.effects.push({root:group,event:e,life:.5,max:.5,kind:'burst'});
+      const burst=new T.InstancedMesh(geometry('burst',()=>new T.IcosahedronGeometry(1,0)),mat(color),count);burst.position.set(e.x,atY+.5,e.z);burst.instanceMatrix.setUsage(T.DynamicDrawUsage);
+      burst.userData.particles=Array.from({length:count},(_,i)=>{const a=i/count*Math.PI*2;return{position:new T.Vector3(Math.cos(a)*.12,Math.sin(i*3)*.1,Math.sin(a)*.12),velocity:new T.Vector3(Math.cos(a)*(2+i%3),1.5+i%4*.6,Math.sin(a)*(2+i%3)),radius:e.type==='explode'?.14:.08};});
+      this.scene.add(burst);this.effects.push({root:burst,event:e,life:.5,max:.5,kind:'burst'});
       const r=ring(e.type==='explode'?1.3:.65,color);r.position.set(e.x,atY,e.z);this.scene.add(r);this.effects.push({root:r,event:e,life:.38,max:.38,kind:'ring'});
       if(e.type==='explode')this.shake=Math.max(this.shake,.2);if(e.type==='hit'&&e.text==='house')this.shake=.08;
     }
@@ -282,7 +301,7 @@ export class EscapeScene {
   }
   private render=():void=>{
     if(this.disposed)return;
-    if(performance.now()-this.last<1000/(this.economy?(this.state?20:8):this.state?(document.hasFocus()||new URLSearchParams(location.search).has('record')?60:12):15)){this.raf=requestAnimationFrame(this.render);return;}
+    if(performance.now()-this.last<1000/(this.helper?4:this.economy?(this.state?20:8):this.state?(document.hasFocus()||new URLSearchParams(location.search).has('record')?60:12):15)){this.raf=requestAnimationFrame(this.render);return;}
     const now=performance.now(),rawMs=now-this.last,dt=Math.min(rawMs/1000,.06);this.last=now;this.elapsed+=dt;
     if(this.state){this.frameCount++;this.totalFrameMs+=rawMs;}
     const s=this.state,z=s?.house.z??0,clock=s?.clock??this.elapsed;
@@ -292,7 +311,7 @@ export class EscapeScene {
     for(const w of this.house.wheels)w.rotation.x=-z/0.87;
     this.house.engine.scale.setScalar(1+Math.sin(clock*18)*.015);
     const boost=!!s&&s.house.boostUntil>s.clock;
-    (this.house.engine.children.find(o=>o instanceof T.Mesh) as T.Mesh|undefined)?.rotation.set(Math.PI/2,0,Math.sin(clock*2)*.03);
+    this.house.engine.rotation.z=Math.sin(clock*12)*.018;
     this.storm.visible=!!s;this.storm.position.z=s?.stormZ??-40;for(let i=1;i<this.storm.children.length;i++)this.storm.children[i].position.y=3+Math.sin(clock*.7+i)*1.2;this.exit.visible=!!s&&s.stage===3;
     const biome=s?.biome??'quarry',index=Math.floor(z/30);
     const wanted=new Set<string>();
@@ -338,7 +357,7 @@ export class EscapeScene {
         g.position.y=e.kind==='devourer'?Math.sin(clock*12)*.035:Math.abs(Math.sin(clock*7+e.born))*.1;
         if(e.kind!=='devourer')g.rotation.y=Math.atan2(-e.x,s.house.z-e.z)+Math.PI;else g.rotation.y=0;
         g.rotation.z=e.stunnedUntil>s.clock?Math.sin(clock*35)*.09:Math.sin(clock*6+e.born)*.015;
-        g.scale.setScalar(e.kind==='devourer'&&e.exposedUntil>s.clock?1.02:1);g.userData.pick={x:e.x,z:e.z};
+        g.scale.setScalar(e.kind==='devourer'&&e.exposedUntil>s.clock?1.02:1);g.userData.pick={x:e.x,z:e.z};if(g.userData.armor)g.userData.armor.visible=e.armor>0;if(g.userData.core){g.userData.core.visible=e.exposedUntil>s.clock;g.userData.core.rotation.z=clock*4;}
       }
       for(const[key,g]of this.monsters)if(!enemies.has(key)){this.remove(g);this.monsters.delete(key);}
       const hazards=new Set(s.hazards.map(h=>h.id));
@@ -352,7 +371,10 @@ export class EscapeScene {
     }else this.gate.visible=false;
     for(const fx of this.effects){
       fx.life-=dt;const t=1-fx.life/fx.max;
-      if(fx.kind==='burst')for(const child of fx.root.children){const velocity=child.userData.velocity as T.Vector3;child.position.addScaledVector(velocity,dt);velocity.y-=8*dt;child.scale.multiplyScalar(Math.max(.01,1-dt*3));}
+      if(fx.kind==='burst'){
+        const burst=fx.root as T.InstancedMesh;
+        (burst.userData.particles as {position:T.Vector3;velocity:T.Vector3;radius:number}[]).forEach((p,i)=>{p.position.addScaledVector(p.velocity,dt);p.velocity.y-=8*dt;this.dummy.position.copy(p.position);this.dummy.scale.setScalar(p.radius*Math.max(.01,1-t));this.dummy.updateMatrix();burst.setMatrixAt(i,this.dummy.matrix);});burst.instanceMatrix.needsUpdate=true;
+      }
       if(fx.kind==='ring'){fx.root.scale.setScalar(1+t*2);((fx.root as T.Mesh).material as T.MeshBasicMaterial).opacity=(1-t)*.8;}
       if(fx.kind==='beam')((fx.root as T.Line).material as T.LineBasicMaterial).opacity=1-t;
     }
@@ -367,7 +389,7 @@ export class EscapeScene {
     this.light.position.set(-14,30,this.viewZ-12);this.light.target.position.set(0,0,this.viewZ+3);
     this.aimRing.visible=!!own&&s?.phase==='travel';this.aimRing.position.set(this.aim.x,.09,this.aim.z);
     this.trajectory.visible=!!own?.carry&&s?.phase==='travel';if(this.trajectory.visible&&own){const points=[];const d=Math.hypot(this.aim.x-own.x,this.aim.z-own.z),ratio=Math.min(1,18/Math.max(.1,d));for(let i=0;i<=20;i++){const t=i/20;points.push(new T.Vector3(own.x+(this.aim.x-own.x)*ratio*t,1.1+Math.sin(t*Math.PI)*2,own.z+(this.aim.z-own.z)*ratio*t));}this.trajectory.geometry.dispose();this.trajectory.geometry=new T.BufferGeometry().setFromPoints(points);this.trajectory.computeLineDistances();}
-    if(now>this.nextShadow){this.renderer.shadowMap.needsUpdate=true;this.nextShadow=now+70;}
+    if(now>this.nextShadow){this.renderer.shadowMap.needsUpdate=true;this.nextShadow=now+100;}
     this.renderer.render(this.scene,this.camera);this.lastHouse=z;this.raf=requestAnimationFrame(this.render);
   };
   destroy():void {

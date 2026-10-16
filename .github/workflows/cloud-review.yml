@@ -63,7 +63,7 @@ jobs:
         env:
           REVIEW_BASE_URL: http://127.0.0.1:3000
           FFMPEG_PATH: ffmpeg
-          REVIEW_SLICE_ONLY: '1'
+          REVIEW_SLICE_ONLY: '0'
         run: |
           npm start > /tmp/game-heaven-server.log 2>&1 &
           SERVER_PID=$!

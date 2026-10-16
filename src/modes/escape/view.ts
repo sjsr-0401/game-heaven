@@ -25,6 +25,7 @@ export class EscapeView implements ClientMode {
     this.scene=new EscapeScene(root.querySelector('.world')!);this.scene.setOwnId(context.playerId);this.scene.onEvent(e=>this.onEvent(e));
     const opts={signal:this.abort.signal};
     window.addEventListener('keydown',e=>{
+      if(this.state&&(this.state.phase==='won'||this.state.phase==='lost'))return;
       if(document.querySelector('dialog[open]')||(e.target as HTMLElement).matches('input,textarea,select')||e.repeat&&['e','q',' ','f'].includes(e.key.toLowerCase()))return;
       if([' ','ArrowUp','ArrowDown','ArrowLeft','ArrowRight'].includes(e.key))e.preventDefault();
       this.keys.add(e.key.toLowerCase());
@@ -57,7 +58,7 @@ export class EscapeView implements ClientMode {
     },opts);
     this.loop();
   }
-  private hook():void {this.context.command({kind:'hook',...this.mouse});this.nextHook=performance.now()+520;}
+  private hook():void {if(!this.state||this.state.phase!=='travel'){this.pressed=false;return;}this.context.command({kind:'hook',...this.mouse});this.nextHook=performance.now()+520;}
   private motion():{x:number;z:number} {
     if(document.querySelector('dialog[open]')||!this.state||this.state.phase==='won'||this.state.phase==='lost')return{x:0,z:0};
     const horizontal=Number(this.keys.has('d')||this.keys.has('arrowright'))-Number(this.keys.has('a')||this.keys.has('arrowleft'));
@@ -66,7 +67,7 @@ export class EscapeView implements ClientMode {
     return{x:(horizontal*.836-vertical*.548)/length,z:(horizontal*.548+vertical*.836)/length};
   }
   private sendMotion():void {
-    const p=this.state?.crew.find(p=>p.id===this.context.playerId);if(!p)return;
+    const p=this.state?.crew.find(p=>p.id===this.context.playerId);if(!p||!this.state||this.state.phase==='won'||this.state.phase==='lost')return;
     const m=this.motion();this.scene.setInput(m.x,m.z);
     this.context.command({kind:'input',...m,aimX:this.mouse.x-p.x,aimZ:this.mouse.z-p.z});
   }
@@ -77,7 +78,7 @@ export class EscapeView implements ClientMode {
     this.raf=requestAnimationFrame(this.loop);
   };
   update(room:RoomSnapshot):void {
-    this.room=room;this.state=room.game as EscapeState;this.scene.update(this.state);advanceEscapeAudio(this.state);this.hud();
+    this.room=room;this.state=room.game as EscapeState;if(this.state.phase==='won'||this.state.phase==='lost'){this.keys.clear();this.pressed=false;this.scene.setInput(0,0);}this.scene.update(this.state);advanceEscapeAudio(this.state);this.hud();
   }
   private hud():void {
     const s=this.state!,root=this.context.element,p=s.crew.find(p=>p.id===this.context.playerId)!;

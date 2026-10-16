@@ -22,7 +22,7 @@ async function newPage(name:string,record=false):Promise<Page>{
   contexts.push(context);const page=await context.newPage();pages.push(page);keys.set(page,new Set());
   page.on('pageerror',e=>errors.push(e.message));page.on('console',message=>{if(message.type()==='error'&&!message.text().includes('favicon'))errors.push(message.text());});
   if(record)videoStart=Date.now();
-  await page.goto(base+'/?review=1'+(record?'&record=1':'&graphics=economy'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
+  await page.goto(base+'/?review=1'+(record?'&record=1':'&graphics=economy&review-helper=1'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
   return page;
 }
 async function caption(title:string,description:string):Promise<void>{await main.evaluate(({title,description})=>window.__review!.caption(title,description),{title,description});}
@@ -59,7 +59,7 @@ try{
   await section('한 집, 두 명의 도주 팀','실제 두 브라우저가 같은 서버의 방에 합류하고 출발합니다.',22);
   await main.locator('#ready-start').click();await main.locator('.world canvas').waitFor();await main.waitForTimeout(1000);
   check('실제 2인 원정 시작',(await snapshot(main)).room!.phase==='playing');
-  const start=Date.now();let sawCarry=false,sawThrow=false,sawGate=false,sawCamp=false,sawSecond=false,sawBoss=false,reloaded=false,savedPoster=false;
+  const start=Date.now();let twoPlayerMetrics:{fps:number;drawCalls:number;triangles:number}|null=null;let sawCarry=false,sawThrow=false,sawGate=false,sawCamp=false,sawSecond=false,sawBoss=false,reloaded=false,savedPoster=false;
   const maxSeconds=slice?85:650;
   while((Date.now()-start)/1000<maxSeconds){
     await Promise.all([agent(main,0),agent(friend,1)]);
@@ -77,10 +77,11 @@ try{
     }
     await main.waitForTimeout(120);
   }
+  twoPlayerMetrics=await main.evaluate(()=>window.__review!.metrics());
   await release(main);await release(friend);
   const beforeReload=await snapshot(friend);await friend.reload({waitUntil:'domcontentloaded',timeout:60000});await friend.waitForFunction(()=>window.__review?.snapshot().room?.game!=null,{},{timeout:60000});const restored=await snapshot(friend);check('재접속으로 같은 캐릭터와 원정 상태 복원',beforeReload.playerId===restored.playerId&&restored.room!.code===beforeReload.room!.code);
   let final=(await snapshot(main)).room!,finalGame=final.game as EscapeState;
-  if(!slice){check('2인 원정이 끝까지 종료됨',final.phase==='finished');check('정비와 경로 변경을 실제 플레이',sawCamp&&sawSecond);check('마지막 추격자와 실제 교전',sawBoss);}
+  if(!slice){check('2인 원정이 실제 탈출 성공까지 종료됨',final.phase==='finished'&&finalGame.phase==='won'&&finalGame.bossDefeated);check('정비와 경로 변경을 실제 플레이',sawCamp&&sawSecond);check('마지막 추격자와 실제 교전',sawBoss);}
   // The four-player check uses a separate real room and real UI; no game state is injected.
   if(final.phase==='finished'){await quick(main,'[data-lobby]');await main.locator('#ready-start').waitFor();}
   else{await main.locator('#leave-room').click();await main.locator('#nickname').waitFor();await main.locator('#create-room').click();await main.locator('#lobby-copy').waitFor();}
@@ -123,7 +124,7 @@ try{
   execFileSync(ffmpeg,['-v','error','-i',target,'-f','null','-'],{stdio:'pipe',timeout:180000});check('최종 영상 전체 디코딩',true);
   if(audio){execFileSync(ffmpeg,['-v','error','-i',target,'-map','0:a:0','-f','null','-'],{stdio:'pipe',timeout:60000});check('실제 게임 음성 트랙 디코딩',true);}
   execFileSync(ffmpeg,['-y','-i',target,'-vf','fps=1/20,scale=480:-1,tile=3x3','-frames:v','1','artifacts/combat-sheet.jpg'],{stdio:'pipe',timeout:60000});
-  const metadata={title:'집째로 도망',version:'1.0.0',sourceCommit,repository:'sjsr-0401/game-heaven',fullRun:final.phase==='finished',realGameAudio:!!audio,sourceDurationSeconds:fullDuration,checks,chapters,segments:merged,metrics,summary:{phase:finalGame.phase,seconds:finalGame.clock,distance:finalGame.distance,bossDefeated:finalGame.bossDefeated,players:finalGame.crew.length,contributions:finalGame.crew.map(p=>({name:p.name,...p.stats}))},limitations:['클라우드 브라우저의 실제 키보드·마우스 조작입니다. 사람의 재미 평가와 실제 가정용 인터넷 지연 검증은 별도입니다.','하이라이트는 실제 속도이며 구간 사이를 편집했습니다. 원본 전체 영상도 같은 클라우드 산출물에 포함합니다.']};
+  const metadata={title:'집째로 도망',version:'1.0.0',sourceCommit,repository:'sjsr-0401/game-heaven',fullRun:final.phase==='finished',realGameAudio:!!audio,sourceDurationSeconds:fullDuration,checks,chapters,segments:merged,metrics,twoPlayerMetrics,summary:{phase:finalGame.phase,seconds:finalGame.clock,distance:finalGame.distance,bossDefeated:finalGame.bossDefeated,players:finalGame.crew.length,contributions:finalGame.crew.map(p=>({name:p.name,...p.stats}))},limitations:['클라우드 브라우저의 실제 키보드·마우스 조작입니다. 사람의 재미 평가와 실제 가정용 인터넷 지연 검증은 별도입니다.','하이라이트는 실제 속도이며 구간 사이를 편집했습니다. 원본 전체 영상도 같은 클라우드 산출물에 포함합니다.']};
   await writeFile('artifacts/verification.json',JSON.stringify(metadata,null,2));console.log('FINAL_REVIEW '+JSON.stringify(metadata));
 }catch(error){
   for(let i=0;i<Math.min(pages.length,4);i++)try{await pages[i].screenshot({path:'artifacts/failure-'+i+'.png'});}catch{}
