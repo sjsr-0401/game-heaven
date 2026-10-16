@@ -47,7 +47,7 @@ export class ForestRenderer {
     this.positions.set(id, position); return position;
   }
   private frame = (now: number): void => {
-    const dt = Math.min((now - this.lastFrame) / 1000, 0.1); this.lastFrame = now;
+    const dt = Math.max(0, Math.min((now - this.lastFrame) / 1000, 0.1)); this.lastFrame = now;
     const ctx = this.ctx, time = now / 1000;
     ctx.clearRect(0, 0, BOARD.width, BOARD.height); ctx.drawImage(this.background, 0, 0);
     for (let i = 0; i < 18; i++) {
@@ -59,7 +59,7 @@ export class ForestRenderer {
     ctx.globalAlpha = 1;
     if (this.state) this.drawState(time, dt);
     this.effects = this.effects.filter(effect => now - effect.born < (effect.event.type === 'merge' ? 1700 : effect.event.type === 'wave' ? 2100 : 1100));
-    for (const { event, born } of this.effects) this.drawEffect(event, (now - born) / 1000, time);
+    for (const { event, born } of this.effects) this.drawEffect(event, Math.max(0, (now - born) / 1000), time);
     if (this.aiming) {
       ctx.fillStyle = '#d5c2ff22'; ctx.strokeStyle = '#dbc5ff'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(this.aiming.x, this.aiming.y, 170, 0, Math.PI * 2); ctx.fill(); ctx.setLineDash([7, 7]); ctx.stroke(); ctx.setLineDash([]);
