@@ -132,7 +132,7 @@ export class EscapeView implements ClientMode {
     this.lastPhase=s.phase;
   }
   private positionLabels():void {
-    const s=this.state!;const rows=s.crew.filter(c=>!c.left).map(c=>{const point=this.scene.projectCrew(c.id,c.downUntil>s.clock?1.3:2.35)??this.scene.project(c.x,c.z,onDeckHeight(c,s)+2.35);return'<div class="name-tag '+(c.downUntil>s.clock?'needs-help':'')+'" style="left:'+point.x+'px;top:'+point.y+'px;--crew:'+c.color+';'+(!point.visible?'display:none;':'')+'">'+(c.downUntil>s.clock?'✚ ':'')+escape(c.name)+'</div>';});
+    const s=this.state!;const rows=s.crew.filter(c=>!c.left).map(c=>{const point=this.scene.projectCrew(c.id,c.downUntil>s.clock?1.3:2.35)??this.scene.project(c.x,c.z,onDeckHeight(c,s)+2.35);return'<div class="name-tag '+(c.downUntil>s.clock?'needs-help':c.invulnerableUntil>s.clock?'protected':'')+'" style="left:'+point.x+'px;top:'+point.y+'px;--crew:'+c.color+';'+(!point.visible?'display:none;':'')+'">'+(c.downUntil>s.clock?'✚ ':'')+escape(c.name)+'</div>';});
     for(const e of s.enemies)if(e.hp<e.maxHp&&e.kind!=='devourer'){const point=this.scene.project(e.x,e.z,2.2);if(point.visible)rows.push('<div class="enemy-health" style="left:'+point.x+'px;top:'+point.y+'px"><i style="width:'+Math.max(0,e.hp/e.maxHp*100)+'%"></i></div>');}
     if(!s.gate.open){const point=this.scene.project(0,s.gate.z,3.1);if(point.visible)rows.push('<div class="gate-label" style="left:'+point.x+'px;top:'+point.y+'px">막힌 길 <b>'+Math.ceil(s.gate.hp)+'</b></div>');}
     this.labels.innerHTML=rows.join('');

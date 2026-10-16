@@ -1,0 +1,60 @@
+{
+  "sourceCommit": "5e3ccff3269bc9ced7b3bb6b78e6a17e943f0926",
+  "workflowRun": 38866444959,
+  "captureMethod": "Chromium native screen recording",
+  "quality": "economy",
+  "twoPlayerFps": 17,
+  "fourPlayerFps": 15,
+  "sourceDurationSeconds": 266.96,
+  "recordingWallSeconds": 266.989,
+  "entries": [
+    {
+      "path": "docs/screenshots/menu.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "8ab150eacf6806cc7406d03ab8f0be69a4c508e0",
+      "bytes": 663974,
+      "sha256": "9856970bd0081f6d4f2c5178576ac92d8381d3f03567908c4e1e606c4445a757"
+    },
+    {
+      "path": "docs/screenshots/play.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "9eb75572987240baf80cc9b89340c80c83f07d35",
+      "bytes": 645858,
+      "sha256": "3dc5431a3068854792125b73ddb4495026d6a12a3957eed43ed5f3fdf4bc27a1"
+    },
+    {
+      "path": "docs/screenshots/canal.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "6792dcd8e61120591d2b05c89d3336ad29fae8e9",
+      "bytes": 675964,
+      "sha256": "d1563e5d3ce7c0b1e78531d871954ff29ebcd14704f6cbc4700e84c0547534e7"
+    },
+    {
+      "path": "docs/screenshots/boss.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "b5cb1193ecfa53193ca5a3f0c949baa713c53b96",
+      "bytes": 635468,
+      "sha256": "a675cbf9ffc60c96ffda3a684e0d7ff4669a5969aad3fbfd7e9d071bd9b7811a"
+    },
+    {
+      "path": "docs/screenshots/four-player.png",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "1ac3036d0501baa45ba14ae34e92c2f45a390713",
+      "bytes": 632895,
+      "sha256": "097d53b2bdcc96f7979bf71e388f19bc9feac45179ae704d1f529928bc513b4e"
+    },
+    {
+      "path": "docs/screenshots/action-strip.jpg",
+      "mode": "100644",
+      "type": "blob",
+      "sha": "75ce9f9bdad542a72e90cf0d1e5358e81e41520f",
+      "bytes": 106628,
+      "sha256": "69fb77efdba986d22d0fcbf676bba45f2e39e10a2b9628a502534c496b056ea6"
+    }
+  ]
+}

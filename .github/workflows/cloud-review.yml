@@ -40,8 +40,6 @@ jobs:
             dist
             dist-server
   review:
-    permissions:
-      contents: write
     name: Real browser play and video
     needs: checks
     runs-on: ubuntu-latest
@@ -79,12 +77,6 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/health
           npm run review
           npm run review:html
-      - name: Export verified screenshots for repository review
-        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-        continue-on-error: true
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node scripts/export-stills.mjs
       - name: Upload stills for visual review
         if: always()
         uses: actions/upload-artifact@v4
@@ -96,7 +88,6 @@ jobs:
             artifacts/*.png
             artifacts/action-strip.jpg
             artifacts/verification.json
-            artifacts/still-blobs.json
             artifacts/failure-details.json
       - name: Upload video and standalone HTML
         if: always()
@@ -128,3 +119,31 @@ jobs:
       - name: Show server log on failure
         if: failure()
         run: cat /tmp/game-heaven-server.log || true
+  export-stills:
+    name: Prepare verified screenshots for Git
+    needs: review
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 24
+      - uses: actions/download-artifact@v4
+        with:
+          name: houseflight-stills
+          path: artifacts
+      - name: Export verified screenshots
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/export-stills.mjs
+      - uses: actions/upload-artifact@v4
+        with:
+          name: houseflight-screenshot-blobs
+          retention-days: 30
+          path: artifacts/still-blobs.json

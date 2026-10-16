@@ -62,11 +62,11 @@ async function agent(page:Page,index:number):Promise<void>{
   lastActions.set(p.id+d.action,Date.now()+(d.action==='hook'?550:d.action==='dodge'?1450:480));
 }
 try{
-  main=await newPage('노랑 우비',true);mainContext=contexts[0];await main.evaluate(()=>document.fonts.ready);await main.waitForTimeout(1300);await main.screenshot({path:'artifacts/menu.png'});
+  main=await newPage('진수',true);mainContext=contexts[0];await main.evaluate(()=>document.fonts.ready);await main.waitForTimeout(1300);await main.screenshot({path:'artifacts/menu.png'});
   await main.locator('#sound-toggle').click();await main.locator('#create-room').click();await main.locator('#lobby-copy').waitFor();
   check('혼자서는 출발할 수 없음',!await main.locator('#ready-start').isEnabled());
   const data=await snapshot(main),code=data.room!.code;
-  const friend=await newPage('민트 우비');await friend.locator('#join-code').fill(code.toLowerCase());await friend.locator('#join-room').click();await friend.locator('#ready-start').waitFor();
+  const friend=await newPage('다은');await friend.locator('#join-code').fill(code.toLowerCase());await friend.locator('#join-room').click();await friend.locator('#ready-start').waitFor();
   await main.screenshot({path:'artifacts/lobby.png'});check('두 브라우저가 같은 방에 합류',(await snapshot(friend)).room!.code===code);
   await friend.locator('#ready-start').click();await main.waitForFunction(()=>document.querySelector<HTMLButtonElement>('#ready-start')?.disabled===false);
   await section('2인 원정 시작','갈고리로 물건을 끌어오고, 집 근처에서 E로 장착합니다.',22);
@@ -118,7 +118,7 @@ try{
   else{await main.locator('#leave-room').click();await main.locator('#nickname').waitFor();await main.locator('#create-room').click();await main.locator('#lobby-copy').waitFor();}
   const fourCode=(await snapshot(main)).room!.code;
   if((await snapshot(friend)).room?.code!==fourCode){await friend.locator('#leave-room').click();await friend.locator('#nickname').waitFor();await friend.locator('#join-code').fill(fourCode);await friend.locator('#join-room').click();}
-  const third=await newPage('보라 우비'),fourth=await newPage('분홍 우비');
+  const third=await newPage('태오'),fourth=await newPage('수빈');
   for(const page of [third,fourth]){await page.locator('#join-code').fill(fourCode);await page.locator('#join-room').click();await page.locator('#ready-start').waitFor();}
   check('실제 4인 방 입장',(await snapshot(main)).room!.players.length===4);
   const extra=await newPage('다섯 번째');await extra.locator('#join-code').fill(fourCode);await extra.locator('#join-room').click();await extra.waitForTimeout(500);check('다섯 번째 참가자 차단',(await snapshot(extra)).room===null);await extra.context().close();

@@ -59,9 +59,7 @@ function worker(color:string,index:number):WorkerRig {
   const skin=['#d8a57d','#bf825f','#edc7a1','#b67c5c'][index%4],dark='#303c43';
   cylinder(body,0,.96,0,.31,.4,.73,color,8);box(body,0,1.05,.285,.4,.4,.1,'#e7dbc1');box(body,0,.68,0,.76,.12,.52,dark);
   const head=new T.Group();head.position.set(0,1.52,0);body.add(head);
-  ball(head,0,.03,0,.32,skin,2);box(head,0,-.07,.26,.32,.17,.12,skin);
-  for(const side of [-1,1]){box(head,side*.12,.065,.296,.095,.1,.045,'#fff1d4');box(head,side*.12,.06,.326,.045,.065,.02,dark);}
-  box(head,0,-.09,.323,.13,.025,.02,'#724b3e');
+  ball(head,0,.03,0,.32,skin,2);
   const hair=['#634634','#303641','#704934','#3a302c'][index%4];
   ball(head,0,.12,-.035,.33,hair,1);box(head,0,-.02,.27,.35,.25,.12,skin);
   for(const side of [-1,1]){box(head,side*.12,.065,.32,.095,.1,.045,'#fff1d4');box(head,side*.12,.06,.35,.045,.065,.02,dark);}
@@ -292,6 +290,7 @@ export class EscapeScene {
   private last=performance.now();private raf=0;private disposed=false;private observer:ResizeObserver;private viewZ=0;private shake=0;private elapsed=0;
   private eventListener:(e:EscapeEvent)=>void=()=>{};private nextShadow=0;private frameCount=0;private totalFrameMs=0;
   private raycaster=new T.Raycaster();private plane=new T.Plane(new T.Vector3(0,1,0),-.4);private vector=new T.Vector3();
+  private chunkFrustum=new T.Frustum();private cameraProjection=new T.Matrix4();
   private ash:T.InstancedMesh;private dummy=new T.Object3D();private width=1;private height=1;
   constructor(private container:HTMLElement,private showcase=false) {
     this.renderer=new T.WebGLRenderer({antialias:false,alpha:false,powerPreference:'high-performance'});
@@ -301,7 +300,7 @@ export class EscapeScene {
     this.scene.background=new T.Color('#b4b9b1');this.scene.fog=new T.FogExp2('#b4b9b1',.008);
     this.camera=new T.OrthographicCamera(-25,25,17,-17,.1,150);
     this.scene.add(new T.HemisphereLight('#e9eff0','#596b7a',1.55));
-    this.light=new T.DirectionalLight('#ffe0ad',2.2);this.light.castShadow=true;this.light.shadow.mapSize.set(512,512);
+    this.light=new T.DirectionalLight('#ffe0ad',2.2);this.light.castShadow=true;this.light.shadow.mapSize.set(1024,1024);
     Object.assign(this.light.shadow.camera,{left:-27,right:27,top:30,bottom:-24,near:1,far:90});this.light.shadow.bias=-.0007;this.light.shadow.normalBias=.045;
     this.scene.add(this.light,this.light.target);this.scene.add(this.house.root);this.scene.add(this.aimRing,this.trajectory);
     const fill=new T.DirectionalLight('#8ad6da',.7);fill.position.set(-15,8,-20);fill.name='sky-fill';this.scene.add(fill);
@@ -349,7 +348,7 @@ export class EscapeScene {
     this.raycaster.ray.intersectPlane(this.plane,this.vector);
     return{x:this.vector.x,z:this.vector.z};
   }
-  metrics():{fps:number;drawCalls:number;triangles:number;quality:GraphicsQuality;art:{loaded:number;total:number};frames:number;frameMs:number}{return{fps:this.frameCount?Math.round(1000/(this.totalFrameMs/this.frameCount)):0,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,quality:this.quality,art:artStatus(),frames:this.frameCount,frameMs:this.totalFrameMs};}
+  metrics():{fps:number;drawCalls:number;triangles:number;quality:GraphicsQuality;art:{loaded:number;total:number};frames:number;frameMs:number;visibleChunks:number;cachedChunks:number}{return{fps:this.frameCount?Math.round(1000/(this.totalFrameMs/this.frameCount)):0,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,quality:this.quality,art:artStatus(),frames:this.frameCount,frameMs:this.totalFrameMs,visibleChunks:[...this.chunks.values()].filter(g=>g.visible).length,cachedChunks:this.chunks.size};}
   private resize():void{
     this.width=Math.max(1,this.container.clientWidth);this.height=Math.max(1,this.container.clientHeight);
     this.renderer.setSize(this.width,this.height,false);const aspect=this.width/this.height,half=aspect<1.2?20:14.8;
@@ -404,7 +403,7 @@ export class EscapeScene {
     }
     const wanted=new Set<string>();
     for(let i=index-1;i<=index+2;i++){
-      const key=i+biome+this.artRevision;wanted.add(key);if(!this.chunks.has(key)){const chunk=chunkModel(i,biome);chunk.position.z=i*30;this.scene.add(chunk);this.chunks.set(key,chunk);}
+      const key=i+biome+this.artRevision;wanted.add(key);if(!this.chunks.has(key)){const chunk=chunkModel(i,biome);chunk.position.z=i*30;this.scene.add(chunk);chunk.updateMatrixWorld(true);chunk.userData.bounds=new T.Box3().setFromObject(chunk);this.chunks.set(key,chunk);}
     }
     for(const[key,g]of this.chunks)if(!wanted.has(key)){this.remove(g);this.chunks.delete(key);}
     if(s){
@@ -429,7 +428,7 @@ export class EscapeScene {
         for(let i=0;i<2;i++){rig.legs[i].rotation.x=down?1.2:Math.sin(movement+i*Math.PI)*.65*weight;rig.arms[i].rotation.x=p.carry?-1.55:Math.sin(movement+i*Math.PI)*.4*weight;}
         if(s.clock-p.hookReady>-.48&&s.clock-p.hookReady<-.26)rig.arms[1].rotation.x=-1.6;
         rig.root.userData.walk=p.walk;rig.root.userData.pick={x:p.x,z:p.z};rig.root.userData.hint={type:'crew',label:'동료 구조 · 좌클릭',color:'#9cddaa'};
-        rig.root.visible=p.invulnerableUntil<=s.clock||Math.floor(clock*12)%2===0||down;
+        rig.root.visible=true;
       }
       for(const[id,rig]of this.crew)if(!alive.has(id)){this.remove(rig.root);this.crew.delete(id);}
       const props=new Set(s.props.map(p=>p.id+(p.pad?'pad':'')));
@@ -507,6 +506,8 @@ export class EscapeScene {
     this.shake=Math.max(0,this.shake-dt*.9);const jitter=Math.sin(clock*65)*this.shake;
     const own=s?.crew.find(p=>p.id===this.ownId),focusX=own?clamp(own.x*.12,-1.5,1.5):0;
     this.camera.position.set(19+focusX+jitter,25,this.viewZ-25+jitter);this.camera.lookAt(focusX,.4,this.viewZ+4);
+    this.camera.updateMatrixWorld();this.chunkFrustum.setFromProjectionMatrix(this.cameraProjection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
+    for(const chunk of this.chunks.values())chunk.visible=this.quality==='high'||this.chunkFrustum.intersectsBox(chunk.userData.bounds as T.Box3);
     this.light.position.set(-14,30,this.viewZ-12);this.light.target.position.set(0,0,this.viewZ+3);
     this.aimRing.visible=!!own&&s?.phase==='travel';this.aimRing.position.set(this.aim.x,s&&this.hovered?.type!=='enemy'&&this.hovered?.type!=='gate'&&onDeck(this.aim,s.house)?1.69:.09,this.aim.z);(this.aimRing.material as T.MeshBasicMaterial).color.set(this.hovered?.color??'#fff0b2');
     this.trajectory.visible=!!own?.carry&&s?.phase==='travel';if(this.trajectory.visible&&own){

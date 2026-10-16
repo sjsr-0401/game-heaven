@@ -4,6 +4,10 @@
 
 갈고리로 부품을 회수하고, 화약통을 던져 길을 뚫고, 쓰러진 동료를 끌어올립니다. 집은 자동으로 달리며, 정비소에서 공용 부품으로 장비를 개조하고 다음 경로에 투표합니다.
 
+![실제 4인 플레이](docs/screenshots/four-player.png)
+
+[캡처 더 보기](docs/screenshots.md) · [플레이 영상 실행](https://github.com/sjsr-0401/game-heaven/actions/runs/38866444959) · [수정한 이유](docs/visual-review-2026-10-16.md)
+
 ## 플레이
 
 - 2–4인 온라인 협동. 방장이 방을 만들고 다섯 자리 코드를 공유합니다.
