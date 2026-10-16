@@ -69,14 +69,12 @@ async function own(page:Page){
 }
 async function quickButton(page:Page,selector:string):Promise<boolean>{
   const locator=page.locator(selector);
-  if(!await locator.isEnabled())return false;
-  try{await locator.click({timeout:1000});}
-  catch(error){
-    const value=await own(page);
-    if(value.self.status!=='active'||value.room!.phase==='finished')return false;
-    throw error;
-  }
-  await page.waitForTimeout(100);return true;
+  if(!await locator.isVisible()||!await locator.isEnabled())return false;
+  const box=await locator.boundingBox();if(!box)return false;
+  // Use real pointer input. A live match can end between inspection and a click.
+  await page.mouse.move(box.x+box.width/2,box.y+box.height/2,{steps:4});
+  await page.mouse.click(box.x+box.width/2,box.y+box.height/2);
+  await page.waitForTimeout(120);return true;
 }
 async function recruit(page:Page,wager=false):Promise<void>{
   const value=await own(page),cost=wager?(value.self.relics.includes('coin')?90:120):40;
@@ -264,6 +262,8 @@ try{
   await mainContext.close();videoPath=await video.path();
 }catch(error){
   const page=contexts[0]?.pages()[0];if(page)await page.screenshot({path:resolve(directory,'failure.png')}).catch(()=>{});
+  const buddyPage=contexts[1]?.pages()[0];if(buddyPage)await buddyPage.screenshot({path:resolve(directory,'friend-failure.png')}).catch(()=>{});
+  await writeFile(resolve(directory,'failure-details.json'),JSON.stringify({errors,message:String(error)},null,2));
   throw error;
 }finally{for(const context of contexts.reverse())await context.close().catch(()=>{});await browser.close();}
 await copyFile(videoPath, resolve(directory, 'nightwatch-preview.webm'));
