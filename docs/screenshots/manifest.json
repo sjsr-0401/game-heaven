@@ -1,73 +1,115 @@
 {
-  "sourceCommit": "6743bfab89d3c76be03dfb744219142d2053c0e7",
-  "workflowRun": 38870532297,
+  "sourceCommit": "372670343871f3404ef4cb82a706b6abfd5651e6",
+  "workflowRun": 38872731762,
   "captureMethod": "Chromium native screen recording",
   "quality": "economy",
-  "twoPlayerFps": 15,
-  "fourPlayerFps": 11,
+  "twoPlayerFps": 12,
+  "fourPlayerFps": 8,
   "video": {
     "width": 1280,
     "height": 800,
     "r_frame_rate": "25/1"
   },
-  "sourceDurationSeconds": 285.36,
-  "recordingWallSeconds": 285.27,
+  "sourceDurationSeconds": 296.72,
+  "recordingWallSeconds": 296.7,
+  "chapters": [
+    {
+      "title": "2인 원정 시작",
+      "description": "갈고리로 물건을 끌어오고, 집 근처에서 E로 장착합니다.",
+      "seconds": 0
+    },
+    {
+      "title": "갈고리 회수와 투척",
+      "description": "고철은 납품하고, 다가오는 적에게는 화약통을 던집니다.",
+      "seconds": 11.924000000000001
+    },
+    {
+      "title": "검문소 돌파",
+      "description": "먼저 길을 열지 않으면 집도 멈춥니다. 갈고리와 화약통으로 뚫어 보세요.",
+      "seconds": 34.42399999999999
+    },
+    {
+      "title": "정비소",
+      "description": "모은 부품으로 장비를 고칩니다. 다음 경로는 투표로 결정합니다.",
+      "seconds": 56.92399999999999
+    },
+    {
+      "title": "운하로 진입",
+      "description": "정비를 마친 집으로 다음 구역에 들어갑니다. 빠른 수거기를 조심하세요.",
+      "seconds": 74.424
+    },
+    {
+      "title": "고철 포식자",
+      "description": "입이 열릴 때 화약통을 던지고, 붉은 경고 밖으로 피하세요.",
+      "seconds": 94.92399999999998
+    },
+    {
+      "title": "탈출 성공",
+      "description": "포식자를 쓰러뜨리고 마지막 방벽까지 도착했습니다.",
+      "seconds": 130.424
+    },
+    {
+      "title": "4인 플레이",
+      "description": "네 명이 한 집을 지키며 물건 회수·투척·수리를 나눕니다.",
+      "seconds": 139.92400000000004
+    }
+  ],
   "entries": [
     {
       "path": "docs/screenshots/menu.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "2045a235188796cd11d8df59650c340310faca37",
-      "bytes": 664329,
-      "sha256": "5eb90d6a4021d0cc6c6bd65aab13ea5f7a941fd43f36341543be0115c8d34575"
+      "sha": "1732b169be8584109cdf270db99bb4ac903e28c9",
+      "bytes": 663804,
+      "sha256": "5f7edcb3dc0388a5b82399a7cd67950a47c88c7eb77d9bdeff4757339df182dc"
     },
     {
       "path": "docs/screenshots/play.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "30d3f42872a6d1a29353710348528f27b55566fa",
-      "bytes": 599006,
-      "sha256": "6c79c3ab212fb543b23f798905e8501e27170177344e03ae9fa8fbc4518dcc97"
+      "sha": "2397fee5d8ad0a2f614436d420f1954604c782ed",
+      "bytes": 596645,
+      "sha256": "642cbe58d29d71b3cfcf1673ef9f983129d145e3a675bc8d78224d74266f9dc5"
     },
     {
       "path": "docs/screenshots/canal.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "9c25e39c4b94a6bfb1bc566adf5700750350fe9d",
-      "bytes": 668115,
-      "sha256": "74bff70fb137924b58f15e5dd9e1098f76623eda118927ef04d0b4b0d79e9834"
+      "sha": "f1ba7843fc2e6151e3fe3cbb63b81a0f186772bd",
+      "bytes": 674431,
+      "sha256": "377ac6305bd76e65be7c318f515d16460ef7189a2e3e2f53bdd76f8a29bb7a6e"
     },
     {
       "path": "docs/screenshots/boss.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "cc1c5b052fe2be519e574f8c245c3b8a0e96d19c",
-      "bytes": 635418,
-      "sha256": "38d54179f120001144401262b8e4fad7cbfed0c637b851bde1d6bd92454dda78"
+      "sha": "1e77bd089a5033dfa7baeb09558283ed3e9ac21a",
+      "bytes": 645460,
+      "sha256": "89b719051279e906dbdc4b60fcd4ed683ec217ca50b7edff167c313ebc7aea44"
     },
     {
       "path": "docs/screenshots/four-player.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "af0a6207bd30257460fa41048ae5434a6d5ddf4d",
-      "bytes": 630004,
-      "sha256": "02c1216defe268bcf87d537f0a1e17c65563105035f69326c2f85782ae6c7c63"
+      "sha": "c4aaae186110547cba90fe54fafba420d53441e5",
+      "bytes": 622169,
+      "sha256": "b73d2cc983ab5b73982ff94fc094bde0a63ef0695a854dba0058891f8371b1d5"
     },
     {
       "path": "docs/screenshots/four-player-high.png",
       "mode": "100644",
       "type": "blob",
-      "sha": "c021e3eeb4274b3797f1ddfffdfaa1ebec130831",
-      "bytes": 719936,
-      "sha256": "f0d782d9d0cedd7fad189b2400e99ec2d930cd5e8a3dbcb6c8eb3acadba4b7ce"
+      "sha": "026d6f452b5d4e8d8e0c61ad70b39a725a86ea04",
+      "bytes": 725046,
+      "sha256": "2cc45fec310a6ebe1b740c4f4c78c0516331ca25f37a9b5562459f729d31af7e"
     },
     {
       "path": "docs/screenshots/action-strip.jpg",
       "mode": "100644",
       "type": "blob",
-      "sha": "f71fb31b301d0be386cc6296550f356e71e52eb5",
-      "bytes": 107241,
-      "sha256": "2c2386720ad0b27d5d8a1dc790219e3c7e8db52a3847f3cdc19318ef4697d353"
+      "sha": "ca6a6cb16969736bf256e8d2ee9210a3b2a0cdbe",
+      "bytes": 108013,
+      "sha256": "87a53ee805c002afb6e116e6c48dddb214e9ce459a34ac9097a93314b9a6f0bb"
     }
   ]
 }

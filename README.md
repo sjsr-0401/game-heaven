@@ -8,7 +8,7 @@
 
 같은 4인 원정의 고화질 캡처입니다. 영상은 절전 모드로 녹화했습니다.
 
-[캡처 더 보기](docs/screenshots.md) · [플레이 영상 실행](https://github.com/sjsr-0401/game-heaven/actions/runs/38870532297) · [수정한 이유](docs/visual-review-2026-10-16.md)
+[캡처 더 보기](docs/screenshots.md) · [플레이 영상 실행](https://github.com/sjsr-0401/game-heaven/actions/runs/38872731762) · [수정한 이유](docs/visual-review-2026-10-16.md)
 
 ## 플레이
 
