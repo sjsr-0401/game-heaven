@@ -7,16 +7,18 @@ export function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: num
 }
 
 // Original human pixel figures. Coordinates are whole pixels; every pose shares the same skeleton.
-export function drawGuardian(ctx: CanvasRenderingContext2D, x: number, y: number, family: Family, rank: number, scale = 2, time = 0, attack = 0, facing = 1): void {
+export function drawGuardian(ctx: CanvasRenderingContext2D, x: number, y: number, family: Family, rank: number, scale = 2, time = 0, attack = 0, facing = 1, variant = 0): void {
   ctx.save(); ctx.imageSmoothingEnabled = false;
   ctx.translate(Math.round(x), Math.round(y)); ctx.scale(scale * facing, scale);
   const pixel = (color: string, a: number, b: number, w: number, h: number) => { ctx.fillStyle = color; ctx.fillRect(Math.round(a), Math.round(b), w, h); };
   const info = FAMILIES_INFO[family], accent = rank >= 2 ? RARITIES[rank].color : info.color;
-  const dark = '#111725', skin = family === 'volt' ? '#b98568' : '#edbc92', skinLight = family === 'volt' ? '#e4b08c' : '#ffe0b1';
-  const hair = { ranger: '#70503d', ember: '#bc6250', frost: '#b9c8d6', volt: '#202b43' }[family];
-  const coat = { ranger: '#736454', ember: '#a7473d', frost: '#557a9a', volt: '#625084' }[family];
-  const light = { ranger: '#ac9370', ember: '#db7960', frost: '#9cbdc9', volt: '#9983b7' }[family];
-  const breathe = Math.floor(Math.sin(time * 3 + x) * 0.65);
+  const dark = '#111725', skin = ['#edbc92','#c99170','#d4a581'][variant % 3], skinLight = ['#ffe0b1','#edbf99','#efcdac'][variant % 3];
+  const hair = { ranger: variant%2?'#745447':'#9c835c', ember: '#bc6250', frost: '#c6d7df', volt: '#202b43', sentinel:'#8b7860', shade:'#6e3658' }[family];
+  const coat = { ranger: '#736454', ember: '#a7473d', frost: '#557a9a', volt: '#625084', sentinel:'#657969', shade:'#674154' }[family];
+  const light = { ranger: '#ac9370', ember: '#db7960', frost: '#9cbdc9', volt: '#9983b7', sentinel:'#c6d2bb', shade:'#b77d98' }[family];
+  const breathe = Math.sin(time * 2.6 + variant) > .65 ? -1 : 0;
+  if(rank>=2){pixel(dark,-12,-23,9,24);pixel(accent,-11,-22,6,21);pixel('#ffffff33',-10,-22,2,18);}
+  if(rank>=3){pixel('#f4d993',-12,-24,24,2);pixel('#fff1c4',-12,-24,3,4);}
   // Cloak silhouette, separate boots, knees and belt keep the figure recognisably human.
   pixel(dark, -8, -22 + breathe, 15, 19);
   pixel(coat, -9, -20 + breathe, 5, 17); pixel(coat, 4, -20 + breathe, 5, 17);
@@ -25,6 +27,7 @@ export function drawGuardian(ctx: CanvasRenderingContext2D, x: number, y: number
   pixel('#3d4558', -5, -7, 4, 6); pixel('#596071', 3, -7, 3, 5);
   pixel('#1a1e2b', -7, 0, 7, 4); pixel('#1a1e2b', 2, 0, 8, 4);
   pixel('#8e795c', -6, 0, 5, 1); pixel('#8e795c', 3, 0, 5, 1);
+  ctx.save(); ctx.translate(attack>0?-Math.round(Math.sin(attack*Math.PI)*1.3):0,attack>0?Math.round(attack):0);
   pixel(coat, -6, -23 + breathe, 13, 15); pixel(light, -4, -22 + breathe, 4, 10);
   pixel('#e4c28d', -5, -10, 12, 2); pixel('#483b3c', -1, -11, 3, 4);
   // Neck, jaw, ears, nose, eyes, highlights and individual hair clumps.
@@ -51,6 +54,14 @@ export function drawGuardian(ctx: CanvasRenderingContext2D, x: number, y: number
     pixel('#d9e5df', 4, -23, 6, 5); pixel('#30455f', -2, -21, 7, 10);
     pixel(accent, 0, -21, 2, 8); pixel('#d3e3db', -7, -12, 3, 5);
     pixel(hair, -6, -32, 3, 13);
+  } else if(family==='sentinel') {
+    pixel('#3a4554',-7,-35,15,5);pixel('#bac4be',-6,-36,13,3);pixel('#f5da9c',-1,-35,3,3);
+    pixel('#36474b',-9,-23,20,13);pixel('#a6b8b0',-8,-23,6,5);pixel('#d2ddd0',4,-23,8,5);
+    pixel('#b7c5b8',-5,-19,12,9);pixel(accent,-3,-18,8,2);pixel('#4e6261',-2,-14,6,2);
+  } else if(family==='shade') {
+    pixel('#3a293e',-7,-35,15,6);pixel('#8d506c',-6,-35,12,2);pixel('#37273a',-7,-30,3,10);
+    pixel('#ad7c8d',-9,-22,6,4);pixel('#ad7c8d',5,-22,6,4);pixel('#3b3148',-4,-20,10,11);
+    pixel(accent,-3,-18,8,2);pixel('#d5c2b4',-3,-14,1,6);pixel('#d5c2b4',3,-14,1,6);
   } else {
     pixel('#322a4c', -7, -37 + breathe, 14, 7); pixel('#aa8bc3', -8, -32 + breathe, 16, 2);
     pixel(accent, -2, -37 + breathe, 4, 3); pixel('#d2bb86', -4, -21, 9, 2);
@@ -73,19 +84,31 @@ export function drawGuardian(ctx: CanvasRenderingContext2D, x: number, y: number
     ctx.save(); ctx.translate(10, -15); ctx.rotate(-0.8 + attack * 1.8);
     pixel('#e3c28a', -2, -3, 4, 11); pixel('#4a5770', -6, -4, 12, 3);
     pixel('#9ec8df', -2, -25, 4, 21); pixel('#ebf6ea', -1, -26, 2, 21); pixel('#537d9c', 2, -22, 1, 16); ctx.restore();
+  } else if(family==='sentinel') {
+    pixel('#1a2533',-15,-17,12,18);pixel('#879c92',-14,-17,10,16);pixel('#d5dfc4',-13,-16,8,2);
+    pixel('#d5c184',-11,-14,3,11);pixel('#d5c184',-13,-10,8,3);pixel('#4b655e',-14,-1,10,2);
+    ctx.save();ctx.translate(12,-14);ctx.rotate(-.5+attack*1.2);
+    pixel('#c3a879',0,-14,3,28);pixel('#303e4d',-5,-23,13,12);pixel('#d8e2ce',-5,-23,13,3);pixel('#95aea2',-4,-20,11,7);ctx.restore();
+  } else if(family==='shade') {
+    pixel('#d8c5b8',10+recoil,-18,12,3);pixel('#f9eee1',17+recoil,-19,7,2);
+    pixel('#ab7189',8+recoil,-19,4,6);pixel('#d4beb2',-9,-13,2,13);pixel('#fcf1df',-9,-13,1,10);
+    pixel('#a36e83',-11,-3,6,2);
   } else {
     pixel('#2c263e', 12, -29, 4, 32); pixel('#b39463', 13, -27, 2, 28);
     pixel('#e7d6a9', 10, -30, 8, 3); star(ctx, 14, -32, 6 + Math.sin(time * 5), accent);
   }
+
+  if(rank>=2){pixel(accent,10,-24,3,3);pixel('#fff0c9',11,-24,1,1);}
+  ctx.restore();
   if (rank > 0) {
     pixel(accent, -9, -21, 2, 4); pixel(accent, 7, -21, 2, 4);
     for (let i = 0; i < rank; i++) pixel(accent, -rank * 2 + i * 4, 7, 3, 2);
   }
   ctx.restore();
 }
-export function portrait(family: Family, rank = 0, size = 88): string {
+export function portrait(family: Family, rank = 0, size = 88, variant = 0): string {
   const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
-  drawGuardian(canvas.getContext('2d')!, size * 0.39, size * 0.85, family, rank, size / 47);
+  drawGuardian(canvas.getContext('2d')!, size * 0.39, size * 0.85, family, rank, size / 47, 0, 0, 1, variant);
   return canvas.toDataURL();
 }
 
@@ -111,14 +134,20 @@ export function mapArt(): HTMLCanvasElement {
     if(p<722){x=131+p;y=124+j;}else if(p<1202){x=853+j;y=124+p-722;}else if(p<1924){x=853-p+1202;y=604+j;}else{x=131+j;y=604-p+1924;}
     rect(i%3?'#89818a55':'#373b4d99',Math.floor(x/3)*3,Math.floor(y/3)*3,3+Math.floor(random()*4)*3,2);
   }
-  // Raised courtyard with chipped borders and sparse, subtle deployment marks.
-  rect('#111825',220,181,548,355);rect('#454653',224,182,536,346);rect('#212a39',230,190,524,336);
-  for(let r=0;r<5;r++)for(let c=0;c<8;c++){
-    const x=236+c*64,y=204+r*64;
-    rect((r+c)%2?'#2d3747':'#313b4a',x,y,62,62);rect('#435061',x,y,62,2);rect('#192332',x,y+60,62,2);
-    rect('#596273',x+29,y+28,4,4);
-    for(let n=0;n<7;n++)rect(n%3?'#64707b22':'#1d2937',x+random()*58,y+random()*57,2+Math.floor(random()*4),1);
+  // Worn flagstones, moss seams and an old parade-ground seal.
+  rect('#111825',220,181,548,355);rect('#5a5963',224,182,536,346);rect('#242d3c',230,190,524,336);
+  for(let r=0;r<10;r++)for(let c=0;c<16;c++){
+    const x=234+c*32+(r%2?0:2),y=202+r*32;
+    rect(['#303c48','#343f4b','#39434d','#2c3946'][Math.floor(random()*4)],x,y,30,30);
+    rect('#52606a66',x,y,30,1);rect('#182b3622',x,y+28,30,2);
+    if(random()<.25){rect('#3d5a4e',x+2,y+24,7+Math.floor(random()*9),3);rect('#62745b',x+4,y+23,4,1);}
+    for(let n=0;n<5;n++)rect(n%3?'#9ca18b11':'#162a3244',x+random()*28,y+random()*26,2+Math.floor(random()*6),1);
   }
+  ctx.save();ctx.translate(492,360);ctx.globalAlpha=.2;ctx.strokeStyle='#c3ac81';ctx.lineWidth=3;
+  ctx.beginPath();ctx.arc(0,0,103,0,Math.PI*2);ctx.stroke();ctx.beginPath();ctx.arc(0,0,91,0,Math.PI*2);ctx.stroke();
+  for(let i=0;i<6;i++){ctx.rotate(Math.PI/3);rect('#b8a885',-3,-85,6,12);rect('#b8a885',-18,-62,36,2);}
+  star(ctx,0,0,61,'#978c75');star(ctx,0,0,37,'#2a3844');ctx.restore();
+  for(let r=0;r<5;r++)for(let c=0;c<8;c++){const x=268+c*64,y=236+r*64;rect('#aabfbd33',x-2,y+7,4,2);}
   // Perimeter walls have thickness, crenellations, buttresses and hanging banners.
   for(let x=0;x<984;x+=48){
     rect('#0c1220',x,42,46,36);rect('#3e4352',x+1,44,44,28);rect('#626170',x+2,44,42,3);
@@ -150,6 +179,20 @@ export function mapArt(): HTMLCanvasElement {
   }
   for(const [x,y,a] of [[490,124,0],[853,355,Math.PI/2],[492,604,Math.PI],[131,360,-Math.PI/2]]){
     ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.strokeStyle='#b2a29477';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-5,-5);ctx.lineTo(1,0);ctx.lineTo(-5,5);ctx.stroke();ctx.restore();
+  }
+  const crate=(x:number,y:number)=>{
+    rect('#141b28',x-18,y-10,41,27);rect('#725e51',x-18,y-22,36,30);rect('#ac9270',x-18,y-22,36,3);
+    rect('#3a383d',x-14,y-16,28,19);rect('#8d755c',x-15,y-15,27,2);rect('#8d755c',x-15,y,27,2);
+    rect('#b09a77',x-15,y-14,2,13);rect('#b09a77',x+10,y-14,2,13);
+  };
+  crate(72,650);crate(102,676);crate(896,668);
+  for(const [x,y] of [[20,120],[945,123],[20,637],[941,640]]){
+    rect('#112631',x,y,26,11);rect('#45604f',x+3,y-5,18,14);rect('#718064',x+7,y-7,9,7);
+    for(let n=0;n<9;n++)rect(n%2?'#687958':'#304b44',x+random()*24,y+random()*12-13,4,3);
+  }
+  for(let i=0;i<55;i++){
+    const x=240+random()*510,y=207+random()*310;rect(i%3?'#16273366':'#a5956d55',x,y,5,1);
+    if(i%7===0){rect('#15253077',x+2,y+1,1,7);rect('#15253077',x+3,y+7,7,1);}
   }
   const vignette=ctx.createRadialGradient(492,350,240,492,350,620);
   vignette.addColorStop(0,'#07102500');vignette.addColorStop(1,'#040a18bb');ctx.fillStyle=vignette;ctx.fillRect(0,0,984,716);

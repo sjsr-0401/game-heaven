@@ -10,7 +10,7 @@ import { drawGuardian, mapArt, portrait } from './modes/starwood/art.js';
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
   <header class="topbar"><div class="topbar-inner"><a class="brand" href="/" aria-label="게임천국 홈"><span class="brand-mark">✦</span><span>게임천국<small>GAME HEAVEN</small></span></a><nav aria-label="메인 메뉴"><button class="nav-link current" id="play-nav">게임하기</button><button class="nav-link" id="catalog-nav">용병 도감</button></nav><div class="topbar-right"><span class="connection" id="connection"><i></i><span>서버 연결 중</span></span><span class="header-divider"></span><button class="icon-button" id="sound-toggle" aria-label="효과음 켜기" title="효과음 켜기">♫<span class="sound-off">/</span></button><button class="icon-button" id="help" aria-label="도움말">?</button><span class="profile-icon">나</span></div></div></header>
-  <main class="workspace"><div class="page-heading"><div><div class="breadcrumb">게임천국 <span>/</span> 개인 운빨 디펜스</div><div class="title-line"><h1>밤의 용병단</h1><span class="alpha-badge">NIGHTWATCH / 0.2</span></div><p>각자의 전장. 끝까지 버티게 할 한 번의 행운.</p></div><div class="room-tools" id="room-tools" hidden><button class="room-code-button" id="copy-room"><span class="live-dot"></span>ROOM <b id="room-code"></b><span>⧉</span></button><button class="text-button" id="leave-room">나가기 ↗</button></div><span class="mode-badge" id="mode-badge"><span>◈</span> 1–4인 개인전 <i>·</i> 랜덤 디펜스</span></div><div id="screen"></div></main>
+  <main class="workspace"><div class="page-heading"><div><div class="breadcrumb">게임천국 <span>/</span> 개인 운빨 디펜스</div><div class="title-line"><h1>밤의 용병단</h1><span class="alpha-badge">NIGHTWATCH / 0.3</span></div><p>각자의 전장. 끝까지 버티게 할 한 번의 행운.</p></div><div class="room-tools" id="room-tools" hidden><button class="room-code-button" id="copy-room"><span class="live-dot"></span>ROOM <b id="room-code"></b><span>⧉</span></button><button class="text-button" id="leave-room">나가기 ↗</button></div><span class="mode-badge" id="mode-badge"><span>◈</span> 1–4인 개인전 <i>·</i> 랜덤 디펜스</span></div><div id="screen"></div></main>
   <div class="toast" id="toast" role="status" hidden></div>
   <div class="reconnect-overlay" hidden><span class="spinner"></span><h2>친구들이 기다리고 있어요</h2><p>연결을 복구하는 중입니다. 내 용병는 자리를 지켜요.</p></div>
   <dialog id="info-dialog"><button class="dialog-close" aria-label="닫기">×</button><div id="dialog-content"></div></dialog>
@@ -41,8 +41,8 @@ function nickname(): string {
 function drawWaiting(canvas: HTMLCanvasElement, members = 0): void {
   canvas.width = 984; canvas.height = 716;
   const ctx = canvas.getContext('2d')!; ctx.drawImage(mapArt(), 0, 0);
-  const positions = [[396, 360], [492, 360], [588, 360], [492, 456]];
-  for (let i = 0; i < Math.max(3, members); i++) drawGuardian(ctx, positions[i][0], positions[i][1], FAMILIES[i], i === 1 ? 1 : 0, 3.3);
+  const positions = [[320,340],[450,340],[580,340],[320,470],[450,470],[580,470]];
+  for(let i=0;i<FAMILIES.length;i++)drawGuardian(ctx,positions[i][0],positions[i][1],FAMILIES[i],i===members?2:1,2.6);
 }
 function populateModes(): void {
   const select = document.getElementById('mode-choice') as HTMLSelectElement | null;
@@ -59,7 +59,7 @@ function populateModes(): void {
 function showEntry(): void {
   if (screenKind === 'entry') return;
   mode?.destroy(); mode = null; screenKind = 'entry';
-  screen.innerHTML = `<div class="entry-layout"><section class="entry-forest"><canvas aria-label="잿빛 성채와 사람형 용병들"></canvas><div class="entry-story"><span class="eyebrow">YOUR FIELD. YOUR FORTUNE.</span><h2>오늘 밤의 운명을<br>뽑아볼까?</h2><p>사수, 연금술사, 검사, 술사.<br>어떤 용병이 내 성채를 지키게 될까.</p><span class="forest-tag">✦ &nbsp; 첫 번째 모드 · 밤의 용병단</span></div></section><section class="entry-card panel"><div class="section-label"><span>오늘의 운을 시험할까요?</span><span>✧</span></div><h2>용병단을 모집합니다.</h2><p>닉네임만 정하면 준비 끝.<br>방 코드를 나누고 각자의 전장에서 겨루세요.</p><label for="mode-choice">플레이할 모드</label><select id="mode-choice" aria-label="플레이할 모드"></select><label for="nickname">친구들이 부를 이름</label><input id="nickname" maxlength="12" placeholder="떠돌이" autocomplete="nickname" /><button class="primary" id="create-room">새로운 방 만들기 <span>↗</span></button><div class="or-divider"><span>초대받았다면</span></div><label for="join-code">방 코드</label><div class="join-row"><input id="join-code" maxlength="5" placeholder="ABCDE" aria-label="방 코드" autocomplete="off" /><button class="secondary" id="join-room">입장</button></div><div class="entry-note"><span>◈</span><p>혼자서도 시작할 수 있어요.<br>최대 4명 · 전장과 골드, 승패는 개인별.</p></div><div class="build-label">GAME HEAVEN <span>·</span> PROTOTYPE 0.2</div></section></div><p class="entry-footer">같은 방, 새로운 놀이. <span>우리가 만드는 작은 게임천국.</span></p>`;
+  screen.innerHTML = `<div class="entry-layout"><section class="entry-forest"><canvas aria-label="잿빛 성채와 사람형 용병들"></canvas><div class="entry-story"><span class="eyebrow">YOUR FIELD. YOUR FORTUNE.</span><h2>오늘 밤의 운명을<br>뽑아볼까?</h2><p>운명으로 모인 여섯 직업.<br>유물과 조합으로 새벽까지 버티세요.</p><span class="forest-tag">✦ &nbsp; 첫 번째 모드 · 밤의 용병단</span></div></section><section class="entry-card panel"><div class="section-label"><span>오늘의 운을 시험할까요?</span><span>✧</span></div><h2>용병단을 모집합니다.</h2><p>닉네임만 정하면 준비 끝.<br>방 코드를 나누고 각자의 전장에서 겨루세요.</p><label for="mode-choice">플레이할 모드</label><select id="mode-choice" aria-label="플레이할 모드"></select><label for="nickname">친구들이 부를 이름</label><input id="nickname" maxlength="12" placeholder="떠돌이" autocomplete="nickname" /><button class="primary" id="create-room">새로운 방 만들기 <span>↗</span></button><div class="or-divider"><span>초대받았다면</span></div><label for="join-code">방 코드</label><div class="join-row"><input id="join-code" maxlength="5" placeholder="ABCDE" aria-label="방 코드" autocomplete="off" /><button class="secondary" id="join-room">입장</button></div><div class="entry-note"><span>◈</span><p>혼자서도 시작할 수 있어요.<br>최대 4명 · 전장과 골드, 승패는 개인별.</p></div><div class="build-label">GAME HEAVEN <span>·</span> PROTOTYPE 0.3</div></section></div><p class="entry-footer">같은 방, 새로운 놀이. <span>우리가 만드는 작은 게임천국.</span></p>`;
   drawWaiting(screen.querySelector('canvas')!);
   $<HTMLInputElement>('nickname').value = localStorage.getItem('heaven.name') ?? '떠돌이';
   populateModes();
@@ -74,7 +74,7 @@ function showLobby(): void {
   const host = room.hostId === playerId;
   if (screenKind !== 'lobby') {
     mode?.destroy(); mode = null; screenKind = 'lobby';
-    screen.innerHTML = `<div class="entry-layout lobby-layout"><section class="entry-forest lobby-forest"><canvas></canvas><div class="lobby-center"><span class="eyebrow">BEFORE THE FIRST RAID</span><h2>친구를 기다리는 시간도<br>게임의 일부니까.</h2><p>방 코드를 나누고, 각자의 운명을 시험하세요.</p></div><div class="lobby-map-tag"><i class="live-dot"></i> 잿빛 성채 · 10웨이브 개인전</div></section><section class="entry-card panel lobby-card"><div class="section-label"><span>개인전 대기실</span><span id="lobby-capacity"></span></div><h2>밤의 용병단</h2><p>각자의 용병, 각자의 전장.<br>내 몬스터 55마리 누적 또는 보스 시간 초과 시 패배.</p><div id="lobby-players"></div><div class="lobby-rule"><span>✦</span><div><b>내 성채를 지키는 방법</b><p>골드로 용병을 소환하고 배치하세요.<br>친구가 탈락해도 내 전투는 계속됩니다.</p></div></div><button class="primary" id="start-game"></button><small class="lobby-start-tip" id="start-tip"></small></section></div>`;
+    screen.innerHTML = `<div class="entry-layout lobby-layout"><section class="entry-forest lobby-forest"><canvas></canvas><div class="lobby-center"><span class="eyebrow">BEFORE THE FIRST RAID</span><h2>친구를 기다리는 시간도<br>게임의 일부니까.</h2><p>방 코드를 나누고, 각자의 운명을 시험하세요.</p></div><div class="lobby-map-tag"><i class="live-dot"></i> 잿빛 성채 · 12웨이브 개인전</div></section><section class="entry-card panel lobby-card"><div class="section-label"><span>개인전 대기실</span><span id="lobby-capacity"></span></div><h2>밤의 용병단</h2><p>각자의 용병, 각자의 전장.<br>3막 · 12웨이브 · 보스 3종.<br>각자의 소환 운과 조합으로 새벽까지 버티세요.</p><div id="lobby-players"></div><div class="lobby-rule"><span>✦</span><div><b>내 성채를 지키는 방법</b><p>골드로 용병을 소환하고 배치하세요.<br>친구가 탈락해도 내 전투는 계속됩니다.</p></div></div><button class="primary" id="start-game"></button><small class="lobby-start-tip" id="start-tip"></small></section></div>`;
     $('start-game').addEventListener('click', () => {
       if (!room) return;
       if (room.hostId === playerId) send({ type: 'start' });
@@ -97,6 +97,7 @@ function showLobby(): void {
   $('start-tip').textContent = host ? '모두 준비되면 방장이 출발할 수 있어요.' : '방장이 출발하면 함께 시작해요.';
 }
 function render(): void {
+  document.body.classList.toggle('is-playing',!!room&&room.phase!=='lobby');
   $('room-tools').hidden = !room; $('mode-badge').hidden = !!room;
   if (!room) { showEntry(); return; }
   $('room-code').textContent = room.code;
@@ -147,11 +148,11 @@ $('sound-toggle').addEventListener('click', () => {
 });
 $('play-nav').addEventListener('click', () => window.scrollTo({ top: 0, behavior: 'smooth' }));
 $('catalog-nav').addEventListener('click', () => {
-  $('dialog-content').innerHTML = `<p class="eyebrow">MERCENARY FIELD GUIDE</p><h2>사람들이 지키는 마지막 밤.</h2><p>4개 직업과 5개 등급. 장비와 공격 방식이 다른 사람형 용병을 소환하세요.</p><div class="catalog-grid">${FAMILIES.map(family => `<article><img src="${portrait(family)}" alt="${FAMILIES_INFO[family].name}" /><h3>${FAMILIES_INFO[family].name}</h3><p>${FAMILIES_INFO[family].role}</p><small>공격 ${FAMILIES_INFO[family].damage} · 주기 ${FAMILIES_INFO[family].interval}초</small></article>`).join('')}</div><div class="rarity-guide">${RARITIES.map(rank => `<span style="color:${rank.color}">✦ ${rank.name} ${+(rank.chance * 100).toFixed(2)}%</span>`).join('')}</div><p class="dialog-note">표시는 일반 소환 확률입니다. 전투 화면의 ‘소환 확률 보기’에서 승부 소환의 확률도 확인할 수 있습니다. 보장 소환과 합성은 없습니다.</p>`;
+  $('dialog-content').innerHTML = `<p class="eyebrow">MERCENARY FIELD GUIDE</p><h2>사람들이 지키는 마지막 밤.</h2><p>6개 직업과 5개 등급. 장비와 공격 방식이 다른 사람형 용병을 소환하세요.</p><div class="catalog-grid">${FAMILIES.map(family => `<article><img src="${portrait(family)}" alt="${FAMILIES_INFO[family].name}" /><h3>${FAMILIES_INFO[family].name}</h3><p>${FAMILIES_INFO[family].role}</p><small>공격 ${FAMILIES_INFO[family].damage} · 주기 ${FAMILIES_INFO[family].interval}초</small></article>`).join('')}</div><div class="rarity-guide">${RARITIES.map(rank => `<span style="color:${rank.color}">✦ ${rank.name} ${+(rank.chance * 100).toFixed(2)}%</span>`).join('')}</div><p class="dialog-note">표시는 일반 소환 확률입니다. 전투 화면의 ‘소환 확률 보기’에서 승부 소환의 확률도 확인할 수 있습니다. 보장 소환과 합성은 없습니다.</p>`;
   dialog.showModal();
 });
 $('help').addEventListener('click', () => {
-  $('dialog-content').innerHTML = '<p class="eyebrow">HOW TO SURVIVE THE NIGHT</p><h2>내 전장, 내 운명.</h2><ol class="help-list"><li><b>용병 소환</b><p><kbd>Q</kbd> 일반 소환 40 G. <kbd>R</kbd> 승부 소환 120 G. 승부 소환도 일반이 나올 수 있으며 확률표를 공개합니다.</p></li><li><b>배치와 성장</b><p>용병을 클릭하면 사거리가 보입니다. 드래그 또는 선택 후 우클릭으로 재배치합니다. 최대 16명이며 해고하면 일부 골드를 돌려받습니다. <kbd>W</kbd> 전원 강화, <kbd>E</kbd> 포격 조준 후 클릭. <kbd>ESC</kbd> 조준 취소.</p></li><li><b>개인전과 관전</b><p>같은 방에 있어도 몬스터·용병·골드·승패는 각각입니다. 오른쪽 플레이어를 클릭해 전장을 관전하고, 나를 클릭하면 돌아옵니다. 관전 중에는 명령을 보낼 수 없습니다.</p></li><li><b>승리와 패배</b><p>10웨이브 방어 성공 시 개인 승리. 내 전장에 몬스터 55마리 누적 또는 보스 제한 시간 초과 시 개인 패배입니다. 모두 종료되면 방장이 대기실로 돌아갈 수 있습니다.</p></li></ol>';
+  $('dialog-content').innerHTML = '<p class="eyebrow">HOW TO SURVIVE THE NIGHT</p><h2>내 전장, 내 운명.</h2><ol class="help-list"><li><b>용병 소환</b><p><kbd>Q</kbd> 일반 소환 40 G. <kbd>R</kbd> 승부 소환 120 G. 승부 소환도 일반이 나올 수 있으며 확률표를 공개합니다.</p></li><li><b>배치와 유물</b><p>용병을 클릭하면 사거리가 보입니다. 드래그 또는 선택 후 우클릭으로 재배치합니다. 최대 16명이며 해고하면 일부 골드를 돌려받습니다. <kbd>W</kbd> 전원 강화, <kbd>E</kbd> 포격 조준 후 클릭. <kbd>ESC</kbd> 조준 취소.</p></li><li><b>개인전과 관전</b><p>같은 직업 3명으로 시너지가 켜집니다. 2·5·8웨이브에는 유물 3개 중 하나를 무료로 선택하세요. 보스의 붉은 예고 원에서는 용병을 이동해 기절을 피하세요.</p></li><li><b>개인전과 관전</b><p>같은 방에 있어도 몬스터·용병·골드·승패는 각각입니다. 오른쪽 플레이어를 클릭해 전장을 관전하고, 나를 클릭하면 돌아옵니다. 관전 중에는 명령을 보낼 수 없습니다.</p></li><li><b>승리와 패배</b><p>12웨이브 방어 성공 시 개인 승리. 내 전장에 몬스터 55마리 누적 또는 보스 제한 시간 초과 시 개인 패배입니다. 모두 종료되면 방장이 대기실로 돌아갈 수 있습니다.</p></li></ol>';
   dialog.showModal();
 });
 dialog.querySelector('.dialog-close')!.addEventListener('click', () => dialog.close());

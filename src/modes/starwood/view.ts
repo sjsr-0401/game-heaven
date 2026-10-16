@@ -1,4 +1,4 @@
-import { DEFENSE_ID, FAMILIES_INFO, RARITIES, LAST_WAVE, MAX_ENEMIES, MAX_DEFENDERS, SUMMON_COST, WAGER_COST, WAVE_SECONDS, defenderDamage, dismissValue, upgradeCost, type DefenseState, type DefenseAction } from '../../../shared/defense.js';
+import { DEFENSE_ID, BOSSES, FAMILIES, FAMILIES_INFO, PRIORITIES, RARITIES, RELICS, LAST_WAVE, MAX_DEFENDERS, SUMMON_COST, START_GOLD, WAVE_SECONDS, armyStats, burstCooldown, dismissValue, enemyLimit, upgradeCost, wagerCost, waveInfo, type DefenseState, type DefenseAction, type RelicId } from '../../../shared/defense.js';
 import type { RoomSnapshot } from '../../../shared/protocol.js';
 import type { ClientMode, ModeContext } from '../types.js';
 import { portrait } from './art.js';
@@ -16,6 +16,9 @@ export class StarwoodView implements ClientMode {
   private uiAt = 0;
   private detailKey = '';
   private partyKey = '';
+  private relicKey = '';
+  private lastEvent = 0;
+  private revealTimer: ReturnType<typeof setTimeout> | null = null;
   private readonly images = new Map<string, string>();
 
   constructor(private readonly context: ModeContext) {
@@ -23,28 +26,33 @@ export class StarwoodView implements ClientMode {
     context.element.innerHTML = `
       <div class="game-layout">
         <section class="battle-panel" aria-label="개인 용병 전장">
-          <div class="map-ribbon"><span><i class="tiny-star">✦</i> 01 <b id="board-name">내 전장 · 잿빛 성채</b></span><span class="map-weather">NIGHTWATCH / 개인전</span></div>
+          <div class="map-ribbon"><span><i class="tiny-star">✦</i> 01 <b id="board-name">내 전장 · 잿빛 성채</b></span><span class="map-weather"><span id="act-name">ACT I · 성문</span></span></div>
           <canvas id="battlefield" aria-label="용병을 선택하고 드래그해 배치하는 개인 전장" tabindex="0"></canvas>
+          <div class="boss-hud" hidden><div><b id="boss-name"></b><span id="boss-time"></span></div><div class="boss-health"><i id="boss-health"></i></div><small id="boss-description"></small></div>
+          <div class="summon-reveal" hidden aria-live="polite"></div>
+          <button class="relic-prompt" id="open-relics" hidden><span>✧</span><div><b>전리품이 도착했습니다</b><small>유물 3개 중 1개 선택 · 무료</small></div><span>↗</span></button>
+          <div class="synergy-dock" id="synergies" aria-label="직업 시너지"></div>
           <div class="map-bottom"><span><i class="live-dot"></i> <span id="battle-state">첫 습격 준비</span></span><span id="board-count">4 / 16 용병</span></div>
           <div class="aim-banner" hidden>포격할 곳을 클릭하세요 <kbd>ESC</kbd> 취소</div>
-          <div class="result-overlay" hidden><div class="result-card"><div class="result-symbol">✦</div><p class="eyebrow">NIGHTWATCH / RESULTS</p><h2 id="result-title"></h2><p id="result-copy"></p><button class="primary" id="return-lobby">대기실로 돌아가기 <span>↗</span></button><p class="result-wait" hidden>방장이 다음 판을 준비하고 있어요.</p></div></div>
+          <div class="result-overlay" hidden><div class="result-card"><div class="result-symbol">✦</div><p class="eyebrow">NIGHTWATCH / RESULTS</p><h2 id="result-title"></h2><p id="result-copy"></p><div id="result-stats"></div><button class="primary" id="return-lobby">대기실로 돌아가기 <span>↗</span></button><p class="result-wait" hidden>방장이 다음 판을 준비하고 있어요.</p></div></div>
         </section>
         <aside class="game-sidebar">
-          <section class="panel wave-panel"><div class="section-label"><span>습격 현황</span><span id="wave-kind" class="muted">준비 중</span></div><div class="wave-title"><strong id="wave-number">00</strong><span>/ ${LAST_WAVE} <small>WAVES</small></span><div class="wave-icon">☽</div></div><div class="progress"><i id="wave-progress"></i></div><div class="row-between small"><span id="wave-time"></span><span id="enemy-count">0 / ${MAX_ENEMIES}</span></div><p class="danger-note" id="danger-note">누적 ${MAX_ENEMIES}마리면 내 전장 패배</p></section>
+          <section class="panel wave-panel"><div class="section-label"><span>습격 현황</span><span id="wave-kind" class="muted">준비 중</span></div><div class="wave-title"><strong id="wave-number">00</strong><span>/ ${LAST_WAVE} <small>WAVES</small></span><div class="wave-icon">☽</div></div><div class="progress"><i id="wave-progress"></i></div><div class="row-between small"><span id="wave-time"></span><span id="enemy-count">0 / 55</span></div><p class="danger-note" id="danger-note">누적 55마리면 내 전장 패배</p></section>
           <section class="panel party-panel"><div class="section-label"><span>개인전 현황 · 클릭하면 관전</span><span class="muted" id="party-count"></span></div><div id="party-list"></div></section>
           <section class="panel guardian-panel"><div class="section-label"><span>선택한 용병</span><kbd>클릭</kbd></div><div id="guardian-detail"><div class="empty-selection"><span>⌖</span><p>용병을 선택하세요</p><small>사거리·공격력·장비 확인</small></div></div></section>
-          <div class="field-note"><span>♜</span><p>같은 방, 각자의 운명.<br><strong>친구가 탈락해도 내 전투는 계속.</strong></p></div>
+          <section class="relic-inventory" aria-label="보유 유물"><span>획득한 유물</span><div id="relic-inventory">두 번째 웨이브부터 선택합니다.</div></section>
         </aside>
         <section class="command-bar" aria-label="전투 명령">
-          <div class="resource"><span class="resource-star">G</span><div><small>내 골드</small><strong id="gold">520</strong></div></div>
-          <button class="action summon-action" id="summon"><kbd>Q</kbd><div><b>일반 소환</b><small>${SUMMON_COST} G · 무작위 용병</small></div></button>
-          <button class="action wager-action" id="wager"><kbd>R</kbd><div><b>승부 소환 <span>✦</span></b><small>${WAGER_COST} G · 일반도 나와요</small></div></button>
+          <div class="resource"><span class="resource-star">G</span><div><small>내 골드</small><strong id="gold">${START_GOLD}</strong></div></div>
+          <button class="action summon-action" id="summon"><kbd>Q</kbd><div><b>일반 소환</b><small id="summon-cost">${SUMMON_COST} G · 6직업 중 무작위</small></div></button>
+          <button class="action wager-action" id="wager"><kbd>R</kbd><div><b>승부 소환 <span>✦</span></b><small id="wager-cost">120 G · 일반도 나와요</small></div></button>
           <button class="action" id="upgrade"><kbd>W</kbd><div><b>전원 강화 <em id="upgrade-level">0</em></b><small id="upgrade-cost">100 G · 공격력 +18%</small></div></button>
           <button class="action skill-action" id="burst"><kbd>E</kbd><div><b>지원 포격</b><small id="burst-label">범위 공격 · 준비 완료</small></div></button>
         </section>
       </div>
       <div class="controls-footer"><span><kbd>클릭</kbd> 선택 <i>·</i> <kbd>드래그 / 우클릭</kbd> 배치 <i>·</i> 최대 16명 · 합성 없음</span><button class="odds-button" id="show-odds">소환 확률 보기 ↗</button></div>
-      <dialog class="odds-dialog"><button class="dialog-close" aria-label="확률 창 닫기">×</button><p class="eyebrow">RECRUITMENT ODDS</p><h2>한 번의 행운, 다섯 등급.</h2><p>골드는 이 판 안에서만 사용하는 게임 재화입니다. 모든 추첨은 서버에서 실행하며, 보장 소환은 없습니다.</p><table class="odds-table"><thead><tr><th>등급</th><th>일반 · 40 G</th><th>승부 · 120 G</th><th>공격 배율</th></tr></thead><tbody>${RARITIES.map(r=>`<tr><th style="color:${r.color}">${r.name}</th><td>${+(r.chance*100).toFixed(2)}%</td><td>${+(r.wagerChance*100).toFixed(2)}%</td><td>×${r.multiplier}</td></tr>`).join('')}</tbody></table><p>직업 4종은 각 25%로 추첨합니다. 승부 소환도 일반이 나올 수 있습니다. 해고 환급은 일반 10 / 희귀 20 / 영웅 35 / 전설 60 / 신화 100 G입니다.</p></dialog>`;
+      <dialog class="odds-dialog"><button class="dialog-close" aria-label="확률 창 닫기">×</button><p class="eyebrow">RECRUITMENT ODDS</p><h2>한 번의 행운, 다섯 등급.</h2><p>골드는 이 판 안에서만 사용하는 게임 재화입니다. 모든 추첨은 서버에서 실행하며, 보장 소환은 없습니다.</p><table class="odds-table"><thead><tr><th>등급</th><th>일반 · 40 G</th><th>승부 · 120 G</th><th>공격 배율</th></tr></thead><tbody>${RARITIES.map(r=>`<tr><th style="color:${r.color}">${r.name}</th><td>${+(r.chance*100).toFixed(2)}%</td><td>${+(r.wagerChance*100).toFixed(2)}%</td><td>×${r.multiplier}</td></tr>`).join('')}</tbody></table><p>직업 6종은 각각 1/6 확률로 추첨합니다. 승부 소환도 일반이 나올 수 있습니다. 해고 환급은 일반 10 / 희귀 20 / 영웅 40 / 전설 80 / 신화 160 G입니다.</p></dialog>`;
+    context.element.insertAdjacentHTML('beforeend',`<dialog class="relic-dialog"><button class="dialog-close" aria-label="유물 창 닫기">×</button><p class="eyebrow">SPOILS OF THE NIGHT</p><h2>이번 밤을 바꿀 한 가지.</h2><p>무료로 하나를 선택하세요. 전투는 계속 진행됩니다.</p><div class="relic-choices"></div><p class="dialog-note">유물은 이 판 동안 내 전장에 적용됩니다. 2·5·8웨이브마다 선택할 수 있습니다.</p></dialog><dialog class="dismiss-dialog"><p class="eyebrow">DISMISS MERCENARY</p><h2>이 용병을 해고할까요?</h2><p>소환한 등급과 용병은 되돌릴 수 없습니다.</p><div class="dialog-actions"><button class="secondary" data-cancel-dismiss>취소</button><button class="primary" data-confirm-dismiss>해고하기</button></div></dialog>`);
     const canvas=context.element.querySelector<HTMLCanvasElement>('canvas')!;
     this.renderer=new ForestRenderer(canvas);
     const signal=this.abort.signal;
@@ -83,8 +91,23 @@ export class StarwoodView implements ClientMode {
       const target=event.target as HTMLElement;
       const watch=target.closest<HTMLButtonElement>('[data-watch]');
       if(watch){this.boardId=watch.dataset.watch!;this.selected=null;this.renderer.selected=null;this.pointerStart=null;this.renderer.drag=null;this.cancelAim();this.uiAt=0;if(this.room)this.update(this.room);}
-      if(target.closest('[data-dismiss]')&&this.selected!==null)this.send({kind:'dismiss',defenderId:this.selected});
+      if(target.closest('[data-dismiss]')&&this.selected!==null){
+        const unit=this.state?.defenders.find(d=>d.id===this.selected);
+        if(unit&&unit.rank>=2){
+          const dialog=context.element.querySelector<HTMLDialogElement>('.dismiss-dialog')!;
+          const id=unit.id;dialog.showModal();
+          dialog.querySelector<HTMLButtonElement>('[data-confirm-dismiss]')!.onclick=()=>{this.send({kind:'dismiss',defenderId:id});dialog.close();};
+        }else this.send({kind:'dismiss',defenderId:this.selected});
+      }
+      const priority=target.closest<HTMLButtonElement>('[data-priority]');
+      if(priority&&this.selected!==null)this.send({kind:'priority',defenderId:this.selected,priority:priority.dataset.priority as 'front'|'strong'|'weak'});
+      const relic=target.closest<HTMLButtonElement>('[data-relic]');
+      if(relic&&this.canCommand()){this.send({kind:'relic',relic:relic.dataset.relic as RelicId});context.element.querySelector<HTMLDialogElement>('.relic-dialog')!.close();}
     },{signal});
+    const relicDialog=context.element.querySelector<HTMLDialogElement>('.relic-dialog')!;
+    this.$('open-relics').addEventListener('click',()=>{if(this.canCommand())relicDialog.showModal();},{signal});
+    relicDialog.querySelector('button')!.addEventListener('click',()=>relicDialog.close(),{signal});
+    context.element.querySelector<HTMLButtonElement>('[data-cancel-dismiss]')!.addEventListener('click',()=>context.element.querySelector<HTMLDialogElement>('.dismiss-dialog')!.close(),{signal});
     const odds=context.element.querySelector<HTMLDialogElement>('.odds-dialog')!;
     this.$('show-odds').addEventListener('click',()=>odds.showModal(),{signal});
     odds.querySelector('button')!.addEventListener('click',()=>odds.close(),{signal});
@@ -119,15 +142,22 @@ export class StarwoodView implements ClientMode {
   update(room:RoomSnapshot):void{
     this.room=room;const state=room.game as DefenseState;if(state?.mode!==DEFENSE_ID)return;this.state=state;
     if(!room.players.some(p=>p.id===this.boardId))this.boardId=this.context.playerId;
-    this.renderer.update({...state,defenders:state.defenders.filter(d=>d.ownerId===this.boardId),enemies:state.enemies.filter(e=>e.ownerId===this.boardId),events:state.events.filter(e=>e.ownerId===this.boardId)},this.boardId);
+    this.renderer.update({...state,defenders:state.defenders.filter(d=>d.ownerId===this.boardId),enemies:state.enemies.filter(e=>e.ownerId===this.boardId),events:state.events.filter(e=>e.ownerId===this.boardId),hazards:state.hazards.filter(h=>h.ownerId===this.boardId)},this.boardId);
     if(this.selected!==null&&!state.defenders.some(d=>d.id===this.selected)){this.selected=null;this.renderer.selected=null;}
     if(!this.canCommand())this.cancelAim();
     this.refreshUI();
+    const fresh=state.events.filter(e=>e.id>this.lastEvent&&e.ownerId===this.boardId&&e.type==='summon'&&state.time-e.at<.5);
+    this.lastEvent=Math.max(this.lastEvent,...state.events.map(e=>e.id));
+    const summon=fresh.at(-1);
+    if(summon?.family!==undefined&&summon.rank!==undefined)this.showRecruit(summon.family,summon.rank,summon.unitId??0,summon.special??false);
     this.context.element.querySelector<HTMLElement>('.result-overlay')!.hidden=room.phase!=='finished';
     if(room.phase==='finished'){
       const player=state.players.find(p=>p.id===this.context.playerId)!;
       this.$('result-title').textContent=player.status==='victory'?'성채를 지켜냈다.':'다음 밤엔, 다른 운명.';
-      this.$('result-copy').textContent=player.reason+' · '+player.kills+'처치 · 최고 '+RARITIES[player.bestRank].name;
+      this.$('result-copy').textContent=player.reason+' · 최고 '+RARITIES[player.bestRank].name;
+      this.$('result-stats').innerHTML=`<div><strong>${player.kills}</strong><small>처치</small></div><div><strong>${player.bosses}</strong><small>보스 격파</small></div><div><strong>${player.summons}</strong><small>용병 계약</small></div>`;
+      this.context.element.querySelector<HTMLDialogElement>('.relic-dialog')!.close();
+      this.context.element.querySelector<HTMLDialogElement>('.dismiss-dialog')!.close();
       this.$('return-lobby').hidden=room.hostId!==this.context.playerId;
       this.context.element.querySelector<HTMLElement>('.result-wait')!.hidden=room.hostId===this.context.playerId;
     }
@@ -140,25 +170,51 @@ export class StarwoodView implements ClientMode {
     const army=state.defenders.filter(d=>d.ownerId===this.boardId),enemies=state.enemies.filter(e=>e.ownerId===this.boardId);
     this.$('board-name').textContent=(mine?'내 전장':room.players.find(p=>p.id===this.boardId)?.name+' 관전')+' · 잿빛 성채';
     this.$('gold').textContent=player.gold.toLocaleString();
+    const wave=waveInfo(Math.max(1,state.wave)),limit=enemyLimit(watched);
+    this.$('act-name').textContent=['ACT I · 성문','ACT II · 종탑','ACT III · 새벽'][Math.min(2,Math.floor(Math.max(0,state.wave-1)/4))];
     this.$('wave-number').textContent=String(state.wave).padStart(2,'0');
-    this.$('wave-kind').textContent=watched.status!=='active'?watched.status==='victory'?'방어 성공':'탈락':state.phase==='preparing'?'준비 중':state.wave%5===0?'보스 출현':'방어 중';
+    this.$('wave-kind').textContent=watched.status!=='active'?watched.status==='victory'?'방어 성공':'탈락':state.phase==='preparing'?'준비 중':wave.boss?'보스 출현':wave.name;
     const seconds=Math.max(0,Math.ceil(state.waveEndsAt-state.time));
     this.$('wave-time').textContent=state.wave===LAST_WAVE?'최후의 습격': '다음 습격 '+seconds+'초';
     this.$('wave-progress').style.width=(state.phase==='preparing'?0:Math.min(100,(WAVE_SECONDS-seconds)/WAVE_SECONDS*100))+'%';
-    this.$('enemy-count').textContent=enemies.length+' / '+MAX_ENEMIES;
-    this.$('enemy-count').classList.toggle('danger',enemies.length>MAX_ENEMIES*.7);
+    this.$('enemy-count').textContent=enemies.length+' / '+limit;
+    this.$('enemy-count').classList.toggle('danger',enemies.length>limit*.7);
     const deadline=state.bossDeadlines[this.boardId];
-    this.$('danger-note').textContent=watched.status!=='active'?watched.reason:deadline?'보스 제한 '+Math.max(0,Math.ceil(deadline-state.time))+'초':'누적 '+MAX_ENEMIES+'마리면 이 전장 패배';
+    this.$('danger-note').textContent=watched.status!=='active'?watched.reason:deadline?'보스 제한 '+Math.max(0,Math.ceil(deadline-state.time))+'초':wave.detail;
+    const boss=enemies.find(e=>e.kind==='boss');
+    this.context.element.querySelector<HTMLElement>('.boss-hud')!.hidden=!boss;
+    if(boss){
+      const info=BOSSES[boss.bossType??'warden'];
+      this.$('boss-name').textContent=info.name+(boss.enraged?' · 광폭화':'');
+      this.$('boss-time').textContent=Math.max(0,Math.ceil((deadline??state.time)-state.time))+'s';
+      this.$('boss-health').style.width=(boss.hp/boss.maxHp*100)+'%';this.$('boss-health').style.background=info.color;
+      this.$('boss-description').textContent=info.subtitle;
+    }
     this.$('board-count').textContent=army.length+' / '+MAX_DEFENDERS+' 용병';
     this.$('battle-state').textContent=watched.status!=='active'?'전투 종료 · 다른 플레이어를 클릭해 관전하세요':mine?'내 전장 · '+watched.kills+'처치':'관전 중 · 명령은 내 전장에서';
     this.$('upgrade-level').textContent='+'+player.upgrade;
     this.$('upgrade-cost').textContent=player.upgrade>=8?'최대 강화':upgradeCost(player.upgrade)+' G · 공격력 +18%';
     (this.$('summon') as HTMLButtonElement).disabled=!this.canCommand()||player.gold<SUMMON_COST||army.length>=MAX_DEFENDERS;
-    (this.$('wager') as HTMLButtonElement).disabled=!this.canCommand()||player.gold<WAGER_COST||army.length>=MAX_DEFENDERS;
+    (this.$('wager') as HTMLButtonElement).disabled=!this.canCommand()||(player.contracts===0&&player.gold<wagerCost(player))||army.length>=MAX_DEFENDERS;
     (this.$('upgrade') as HTMLButtonElement).disabled=!this.canCommand()||player.gold<upgradeCost(player.upgrade)||player.upgrade>=8;
     const cooldown=Math.ceil(player.burstReadyAt-state.time);
+    this.$('burst').style.setProperty('--cooldown',Math.max(0,cooldown)/burstCooldown(player)*100+'%');
     this.$('burst-label').textContent=cooldown>0?cooldown+'초 뒤 사용 가능':'범위 공격 · 준비 완료';
     (this.$('burst') as HTMLButtonElement).disabled=!this.canCommand()||cooldown>0||state.phase!=='battle';
+    this.$('wager-cost').textContent=player.contracts>0?'보스 계약서 '+player.contracts+'장 · 이번 소환 무료':wagerCost(player)+' G · 일반도 나와요';
+    this.$('open-relics').hidden=!mine||!player.relicChoices.length||player.status!=='active';
+    this.$('open-relics').classList.toggle('available',player.relicChoices.length>0);
+    const relicKey=JSON.stringify([this.boardId,watched.relics,player.relicChoices]);
+    if(relicKey!==this.relicKey){
+      this.relicKey=relicKey;
+      this.$('relic-inventory').innerHTML=watched.relics.length?watched.relics.map(id=>`<span title="${RELICS[id].name} · ${RELICS[id].description}" style="--relic-color:${RELICS[id].color}">${RELICS[id].symbol}<small>${RELICS[id].name}</small></span>`).join(''):'2·5·8웨이브 · 무료 유물 선택';
+      this.context.element.querySelector('.relic-choices')!.innerHTML=player.relicChoices.map(id=>`<button data-relic="${id}" style="--relic-color:${RELICS[id].color}"><span>${RELICS[id].symbol}</span><h3>${RELICS[id].name}</h3><p>${RELICS[id].description}</p><small>이 유물 선택 ↗</small></button>`).join('');
+    }
+    const synergyKey=FAMILIES.map(f=>army.filter(d=>d.family===f).length).join(':');
+    if(this.$('synergies').dataset.key!==synergyKey){
+      this.$('synergies').dataset.key=synergyKey;
+      this.$('synergies').innerHTML=FAMILIES.map(f=>{const n=army.filter(d=>d.family===f).length,info=FAMILIES_INFO[f];return `<span class="${n>=3?'active':''}" title="${info.short} ${n}명 · ${info.guild}" style="--guild-color:${info.color}"><b>${info.symbol}</b><small>${n}/3</small></span>`;}).join('');
+    }
     this.$('party-count').textContent=room.players.length+' / 4';
     const partyKey=JSON.stringify(room.players.map(info=>[info.id,info.name,info.connected,state.players.find(p=>p.id===info.id)?.status]));
     if(partyKey!==this.partyKey){
@@ -178,14 +234,22 @@ export class StarwoodView implements ClientMode {
     });
     const unit=state.defenders.find(d=>d.id===this.selected),detail=this.$('guardian-detail');
     if(unit){
-      const key=unit.family+'-'+unit.rank;if(!this.images.has(key))this.images.set(key,portrait(unit.family,unit.rank));
+      const key=unit.family+'-'+unit.rank+'-'+unit.id;if(!this.images.has(key))this.images.set(key,portrait(unit.family,unit.rank,88,unit.id));
       const info=FAMILIES_INFO[unit.family],rarity=RARITIES[unit.rank],owner=state.players.find(p=>p.id===unit.ownerId)!;
-      const detailKey=unit.id+':'+unit.rank+':'+owner.upgrade+':'+this.canCommand();
+      const stats=armyStats(unit,owner,army);
+      const detailKey=[unit.id,unit.rank,owner.upgrade,this.canCommand(),unit.priority,owner.relics.join(','),stats.damage,stats.interval,stats.range,stats.guild].join(':');
       if(this.detailKey===detailKey)return;this.detailKey=detailKey;
-      detail.innerHTML=`<div class="guardian-heading"><div class="portrait" style="--rank-color:${rarity.color}"><img src="${this.images.get(key)}" alt="${info.name}" /></div><div><span class="rarity" style="color:${rarity.color}">${rarity.name} · ×${rarity.multiplier}</span><h3>${info.name}</h3><small>${info.role}</small></div></div><div class="guardian-stats"><div><small>공격력</small><b>${defenderDamage(unit,owner.upgrade)}</b></div><div><small>공격 주기</small><b>${(info.interval/(1+unit.rank*.06)).toFixed(2)}초</b></div><div><small>사거리</small><b>${info.range}</b></div></div><button class="merge-button" data-dismiss ${this.canCommand()?'':'disabled'}>용병 해고 · ${dismissValue(unit.rank)} G 환급</button><p class="selection-tip">드래그로 이동 · 같은 칸이면 자리 교환</p>`;
+      detail.innerHTML=`<div class="guardian-heading"><div class="portrait" style="--rank-color:${rarity.color}"><img src="${this.images.get(key)}" alt="${info.name}" /></div><div><span class="rarity" style="color:${rarity.color}">${rarity.name} · ×${rarity.multiplier}</span><h3>${info.name}</h3><small>${info.role}</small></div></div><div class="guardian-stats"><div><small>공격력</small><b>${stats.damage}</b></div><div><small>공격 주기</small><b>${stats.interval.toFixed(2)}초</b></div><div><small>사거리</small><b>${stats.range}</b></div></div><div class="priority-picker" aria-label="공격 우선순위">${Object.entries(PRIORITIES).map(([id,label])=>`<button data-priority="${id}" class="${unit.priority===id?'active':''}" ${this.canCommand()?'':'disabled'}>${label}</button>`).join('')}</div><p class="guild-note ${stats.guild?'active':''}">${stats.guild?'✦ 시너지 활성 · ':''}${info.guild}</p><button class="merge-button" data-dismiss ${this.canCommand()?'':'disabled'}>용병 해고 · ${dismissValue(unit.rank)} G 환급</button><p class="selection-tip">드래그로 이동 · 같은 칸이면 자리 교환</p>`;
     }else if(!detail.querySelector('.empty-selection')){
       this.detailKey='';detail.innerHTML='<div class="empty-selection"><span>⌖</span><p>용병을 선택하세요</p><small>사거리·공격력·장비 확인</small></div>';
     }
   }
-  destroy():void{this.abort.abort();this.context.element.querySelector<HTMLDialogElement>('.odds-dialog')?.close();this.renderer.destroy();this.context.element.replaceChildren();}
+  private showRecruit(family:typeof FAMILIES[number],rank:number,id:number,wager:boolean):void{
+    const box=this.context.element.querySelector<HTMLElement>('.summon-reveal')!,rarity=RARITIES[rank],info=FAMILIES_INFO[family];
+    if(this.revealTimer)clearTimeout(this.revealTimer);
+    box.hidden=false;box.style.setProperty('--reveal-color',rarity.color);box.className='summon-reveal rank-'+rank;
+    box.innerHTML=`<img src="${portrait(family,rank,112,id)}" alt="${info.name}"/><div><small>${wager?'승부 계약':'용병 계약'} · ${rarity.name}</small><strong>${info.name}</strong><p>${info.role}</p><span>전투력 ×${rarity.multiplier}</span></div>`;
+    this.revealTimer=setTimeout(()=>{box.hidden=true;},rank>=3?3200:rank>=1?2100:1300);
+  }
+  destroy():void{if(this.revealTimer)clearTimeout(this.revealTimer);this.abort.abort();this.context.element.querySelectorAll<HTMLDialogElement>('dialog').forEach(d=>d.close());this.renderer.destroy();this.context.element.replaceChildren();}
 }

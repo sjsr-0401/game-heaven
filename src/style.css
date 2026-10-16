@@ -32,3 +32,62 @@ dialog{max-width:660px;width:calc(100vw - 40px);max-height:85vh;overflow:auto;ba
 .command-bar .action{flex:1}.command-bar .action small{font-size:9px}.command-bar .action b{font-size:12px}
 @media(max-width:1250px){.command-bar .action b{font-size:11px}.command-bar .action small{font-size:8px}.resource{min-width:90px}}
 @media(max-width:760px){.command-bar .action{min-width:130px}.resource{flex-basis:100%}.odds-table{font-size:10px}.odds-table th,.odds-table td{padding:9px 5px}}
+
+/* A compact command view leaves the field and its decisions visible together. */
+.is-playing .topbar{height:56px}.is-playing .workspace{padding-top:17px}.is-playing .page-heading{margin-bottom:17px}
+.is-playing .breadcrumb{display:none}.is-playing h1{font-size:24px}.is-playing .page-heading p{font-size:10px;margin-top:5px}
+.is-playing .brand-mark{width:30px;height:30px;font-size:26px}.is-playing .topbar-inner{gap:45px}.is-playing .brand{font-size:17px}
+.is-playing .game-sidebar{gap:10px}.is-playing .game-sidebar .panel{padding:14px 16px}
+.is-playing .wave-title{margin:9px 0}.is-playing .wave-title strong{font-size:35px}
+.is-playing .danger-note{margin-top:10px;padding-top:9px}.is-playing .guardian-panel{min-height:0}
+.is-playing .guardian-heading{margin:12px 0}.is-playing .guardian-stats{padding:9px 0}
+.boss-hud{position:absolute;z-index:3;top:58px;left:25%;right:16%;background:#171c2de8;padding:9px 14px;border:1px solid #a47d8566;border-radius:5px;pointer-events:none}
+.boss-hud>div:first-child{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:11px;color:#edd4b6}
+.boss-hud b{font-weight:700}.boss-hud>small{display:block;font-size:8px;color:#bba9b3;margin-top:5px}
+.boss-health{height:5px;background:#39313d;margin-top:8px;overflow:hidden}.boss-health i{display:block;height:100%;background:#e6b48b;transition:width .12s}
+.summon-reveal{position:absolute;z-index:4;left:50%;top:46%;transform:translate(-50%,-50%);display:flex;align-items:center;width:295px;min-height:123px;background:linear-gradient(115deg,#172b3af2,#111c2bf5);border:1px solid var(--reveal-color);border-radius:5px;box-shadow:0 12px 55px #0008;pointer-events:none;animation:recruit-in .2s ease-out}
+.summon-reveal:before,.summon-reveal:after{content:'';position:absolute;width:28px;height:3px;background:var(--reveal-color);left:-1px;top:-2px}
+.summon-reveal:after{left:auto;top:auto;right:-1px;bottom:-2px}
+.summon-reveal img{width:110px;height:112px;image-rendering:pixelated;flex-shrink:0}
+.summon-reveal>div{padding:14px 15px 14px 0}.summon-reveal small{font-size:9px;color:var(--reveal-color)}
+.summon-reveal strong{display:block;font-size:19px;letter-spacing:-.8px;color:#f1e9dc;margin:7px 0}
+.summon-reveal p{font-size:9px;color:#a2b0b7}.summon-reveal div>span{display:block;margin-top:11px;font-size:10px;color:var(--reveal-color)}
+.summon-reveal.rank-3,.summon-reveal.rank-4{box-shadow:0 0 60px color-mix(in srgb,var(--reveal-color),transparent 75%),0 12px 55px #0008;border-width:2px}
+@keyframes recruit-in{from{opacity:0;transform:translate(-50%,-44%) scale(.92)}to{opacity:1;transform:translate(-50%,-50%) scale(1)}}
+.relic-prompt{position:absolute;z-index:4;bottom:48px;left:18px;display:flex;align-items:center;gap:10px;background:#1c2939eb;border:1px solid #c5ab7288;border-radius:6px;padding:9px 13px;text-align:left;color:#e9d2a7}
+.relic-prompt>span:first-child{font-size:28px}.relic-prompt>span:last-child{font-size:17px;margin-left:12px}.relic-prompt b{display:block;font-size:10px}.relic-prompt small{display:block;font-size:8px;color:#b5ab99;margin-top:4px}
+.relic-prompt:hover{background:#35404a;border-color:#eed3a3}.relic-prompt.available{box-shadow:0 0 20px #e9bb6818}
+.synergy-dock{position:absolute;z-index:2;right:15px;bottom:48px;display:flex;gap:4px;pointer-events:auto}
+.synergy-dock>span{display:flex;flex-direction:column;align-items:center;justify-content:center;width:33px;height:40px;color:#7d889e;background:#101c2de8;border:1px solid #47506366;border-radius:4px}
+.synergy-dock b{font-size:16px;line-height:1}.synergy-dock small{font-size:8px;margin-top:5px}.synergy-dock .active{color:var(--guild-color);border-color:var(--guild-color);box-shadow:inset 0 0 13px color-mix(in srgb,var(--guild-color),transparent 85%)}
+.relic-inventory{padding:2px 6px;color:#8795a9;font-size:9px}.relic-inventory>span{display:block;margin-bottom:8px;color:#b8b4aa}
+#relic-inventory{display:flex;gap:6px;flex-wrap:wrap;font-size:8px}
+#relic-inventory>span{display:flex;align-items:center;gap:5px;background:#1e2d3c;border:1px solid #46536388;border-radius:4px;padding:5px 7px;color:var(--relic-color);font-size:14px}
+#relic-inventory small{font-size:8px}
+.priority-picker{display:flex;gap:4px;margin-top:11px}.priority-picker button{flex:1;padding:7px 3px;font-size:8px;background:#293647;border:1px solid #4a5261;color:#a3adbe;border-radius:4px}
+.priority-picker .active{color:#ecd2a1;border-color:#b79b6c;background:#3b3d45}
+.guild-note{font-size:8px;color:#788c9e;margin-top:9px;line-height:1.6}.guild-note.active{color:#c5d7a5}
+.merge-button{padding:8px 5px;margin-top:10px}.guardian-panel .selection-tip{font-size:7px}
+.relic-dialog{max-width:900px;width:calc(100vw - 40px);background:#162331;border-color:#947d60}
+.relic-dialog>p{font-size:11px}.relic-choices{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin:28px 0 12px}
+.relic-choices button{display:flex;flex-direction:column;align-items:start;text-align:left;min-height:235px;padding:23px 18px;background:linear-gradient(#273545,#1e2b3a);border:1px solid #526171;border-radius:7px;color:#e8dec7}
+.relic-choices button:hover{border-color:var(--relic-color);background:#334151;transform:translateY(-3px)}
+.relic-choices button>span{font-size:38px;color:var(--relic-color);margin-bottom:18px}.relic-choices h3{font-size:16px;margin-bottom:12px}
+.relic-choices button>p{font-size:10px;line-height:1.9;color:#b6bdc7}.relic-choices button>small{margin-top:auto;padding-top:20px;color:var(--relic-color);font-size:9px}
+#result-stats{display:flex;justify-content:center;gap:35px;margin-top:22px}#result-stats div{display:flex;flex-direction:column;gap:6px}
+#result-stats strong{font-size:26px;color:#ecd2a1}#result-stats small{font-size:9px;color:#a5b3bd}
+.skill-action{position:relative;overflow:hidden}.skill-action:after{content:'';position:absolute;bottom:0;left:0;pointer-events:none;height:3px;width:var(--cooldown,0%);background:#a894c6}
+.catalog-grid{grid-template-columns:repeat(3,1fr)}
+@media(max-width:1000px){.priority-picker button{font-size:7px;padding:6px 1px}.synergy-dock>span{width:27px}.synergy-dock{gap:3px}.relic-prompt{padding:7px;left:12px;bottom:42px}.relic-prompt b{font-size:8px}.relic-prompt small{font-size:6px}.relic-prompt>span:last-child{display:none}}
+@media(max-width:760px){.is-playing .topbar{height:54px}.is-playing .workspace{padding-top:14px}.is-playing .page-heading{margin-bottom:12px}.is-playing .page-heading p{font-size:8px}.is-playing h1{font-size:21px}.is-playing .topbar-inner{gap:20px}
+.boss-hud{top:42px;left:20%;right:5%;padding:6px 8px}.boss-hud b{font-size:8px}.boss-hud span{font-size:8px}.boss-hud small{font-size:6px}.boss-health{height:3px;margin-top:4px}
+.synergy-dock{bottom:34px;right:6px;gap:2px}.synergy-dock>span{width:21px;height:29px}.synergy-dock b{font-size:12px}.synergy-dock small{font-size:6px;margin-top:3px}
+.relic-prompt{bottom:34px;left:6px;gap:5px;padding:5px}.relic-prompt>span:first-child{font-size:20px}.relic-prompt b{font-size:7px}.relic-prompt small{font-size:5px}
+.summon-reveal{width:230px;min-height:90px}.summon-reveal img{width:85px;height:90px}.summon-reveal strong{font-size:15px}.summon-reveal small,.summon-reveal p{font-size:7px}.summon-reveal div>span{font-size:8px;margin-top:6px}
+.relic-choices{grid-template-columns:1fr;gap:10px;margin:17px 0}.relic-choices button{min-height:0;padding:14px}.relic-choices button>span{font-size:24px;margin-bottom:8px}.relic-choices h3{font-size:14px;margin-bottom:8px}.relic-choices button>small{padding-top:9px}
+.relic-inventory{grid-column:1/-1}.priority-picker{margin-left:48%}.guild-note{margin-left:48%;font-size:7px}.catalog-grid{grid-template-columns:repeat(2,1fr)}
+}
+@media(prefers-reduced-motion:reduce){.summon-reveal{animation:none}.relic-choices button:hover{transform:none}}
+
+.is-playing .game-sidebar{max-height:716px;overflow:auto;scrollbar-width:thin;scrollbar-color:#5a6570 transparent}
+@media(max-width:760px){.is-playing .game-sidebar{max-height:none;overflow:visible}}

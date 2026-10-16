@@ -1,6 +1,6 @@
 {
   "name": "game-heaven",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "private": true,
   "type": "module",
   "description": "친구들과 즐기는 모듈형 2D 멀티플레이 게임천국",
