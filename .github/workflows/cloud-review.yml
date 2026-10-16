@@ -60,6 +60,7 @@ jobs:
           path: |
             artifacts/review.html
             artifacts/nightwatch-preview.mp4
+            artifacts/combat-sheet.jpg
             artifacts/poster.png
             artifacts/review-page.png
             artifacts/verification.json

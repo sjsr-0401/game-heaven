@@ -199,12 +199,19 @@ export class ForestRenderer {
           ctx.fillStyle=i%2?color:'#ffecc8';ctx.fillRect(x+Math.cos(a)*r,y+Math.sin(a)*r,size*1.8,size);
         }
       }
-      if(event.amount){
+      const hits=this.effects.filter(e=>e.event.type==='hit'&&e.event.targetId===event.targetId);
+      const latest=hits.at(-1)?.event.id===event.id;
+      if(event.amount&&latest){
+        // One readable number per target. Hits arriving together are shown as their real sum.
+        const recent=hits.filter(e=>event.at-e.event.at>=0&&event.at-e.event.at<.12);
+        const amount=recent.reduce((total,e)=>total+(e.event.amount??0),0);
+        const critical=recent.some(e=>e.event.critical),id=event.targetId??event.id;
+        const nx=x+(id%3-1)*14,dy=y-24-(id%4)*12-age*32;
         ctx.globalAlpha=Math.min(1,(.7-age)*3);ctx.textAlign='center';
-        ctx.font=(event.critical?'900 22px':'bold 14px')+' monospace';
-        const label=(event.critical?'CRIT ':'')+event.amount,dy=y-18-age*38;
-        ctx.strokeStyle='#101322';ctx.lineWidth=4;ctx.strokeText(label,x,dy);
-        ctx.fillStyle=event.critical?'#ffce7f':'#f1eee0';ctx.fillText(label,x,dy);
+        ctx.font=(critical?'900 18px':'bold 13px')+' monospace';
+        const label=(critical?'✦ ':'')+amount;
+        ctx.strokeStyle='#101322';ctx.lineWidth=4;ctx.strokeText(label,nx,dy);
+        ctx.fillStyle=critical?'#ffce7f':'#f1eee0';ctx.fillText(label,nx,dy);
       }
     }else if(event.type==='kill'&&age<.6){
       ctx.globalAlpha=1-age/.6;

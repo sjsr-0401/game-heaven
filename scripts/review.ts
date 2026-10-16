@@ -100,6 +100,9 @@ try{
   const own=current.game.defenders.filter(d=>d.ownerId===originalId),other=current.game.defenders.filter(d=>d.ownerId===friendId);
   assert.equal(own.length,4);assert.equal(other.length,4);assert.deepEqual(own.map(d=>d.slot),other.map(d=>d.slot));
   checks.push({name:'동일한 배치 좌표를 사용하는 개인별 용병 부대',passed:true});
+  await button(main,'#sound-toggle');
+  assert.equal(await main.locator('#sound-toggle').getAttribute('aria-label'),'효과음 끄기');
+  checks.push({name:'사용자 클릭으로 효과음 활성화 후 전투 실행 오류 없음',passed:true});
 
   await caption(main,'02','작은 도형 대신, 사람형 용병','사수·연금술사·검사·술사. 얼굴과 장비, 역할을 구분합니다.');
   await selectSlot(main,own[0].slot);await main.waitForTimeout(1800);
@@ -223,6 +226,10 @@ assert.equal(result.status, 0, result.stderr);
 const decoded = spawnSync(ffmpegPath, ['-v', 'error', '-i', output, '-f', 'null', '-'], { encoding: 'utf8', timeout: 120_000 });
 assert.equal(decoded.status, 0, decoded.stderr);
 checks.push({ name: 'MP4 인코딩과 전체 영상 디코딩 확인', passed: true });
+const sheet=spawnSync(ffmpegPath,['-hide_banner','-loglevel','error','-y','-ss','26','-i',output,
+  '-vf','fps=1/4,scale=480:-1,tile=3x3','-frames:v','1',resolve(directory,'combat-sheet.jpg')],{encoding:'utf8',timeout:60_000});
+assert.equal(sheet.status,0,sheet.stderr);
+
 await writeFile(resolve(directory, 'verification.json'), JSON.stringify({
   sourceCommit: process.env.GITHUB_SHA ?? null,
   repository: process.env.GITHUB_REPOSITORY ?? null,

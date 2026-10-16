@@ -31,7 +31,7 @@ export class StarwoodView implements ClientMode {
         </section>
         <aside class="game-sidebar">
           <section class="panel wave-panel"><div class="section-label"><span>습격 현황</span><span id="wave-kind" class="muted">준비 중</span></div><div class="wave-title"><strong id="wave-number">00</strong><span>/ ${LAST_WAVE} <small>WAVES</small></span><div class="wave-icon">☽</div></div><div class="progress"><i id="wave-progress"></i></div><div class="row-between small"><span id="wave-time"></span><span id="enemy-count">0 / ${MAX_ENEMIES}</span></div><p class="danger-note" id="danger-note">누적 ${MAX_ENEMIES}마리면 내 전장 패배</p></section>
-          <section class="panel party-panel"><div class="section-label"><span>개인전 순위 · 클릭하면 관전</span><span class="muted" id="party-count"></span></div><div id="party-list"></div></section>
+          <section class="panel party-panel"><div class="section-label"><span>개인전 현황 · 클릭하면 관전</span><span class="muted" id="party-count"></span></div><div id="party-list"></div></section>
           <section class="panel guardian-panel"><div class="section-label"><span>선택한 용병</span><kbd>클릭</kbd></div><div id="guardian-detail"><div class="empty-selection"><span>⌖</span><p>용병을 선택하세요</p><small>사거리·공격력·장비 확인</small></div></div></section>
           <div class="field-note"><span>♜</span><p>같은 방, 각자의 운명.<br><strong>친구가 탈락해도 내 전투는 계속.</strong></p></div>
         </aside>
