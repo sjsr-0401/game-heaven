@@ -63,6 +63,7 @@ jobs:
             artifacts/poster.png
             artifacts/review-page.png
             artifacts/verification.json
+            artifacts/failure.png
       - name: Show server log on failure
         if: failure()
         run: cat /tmp/game-heaven-server.log || true

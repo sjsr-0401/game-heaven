@@ -105,7 +105,7 @@ try {
   const main = await mainContext.newPage(); remember(main);
   const video = main.video(); assert.ok(video);
   await main.goto(base + '/?record=1');
-  await main.waitForSelector('.connection.connected');
+  await main.waitForSelector('.connection.connected', { state: 'attached' });
   await main.evaluate(() => document.fonts.ready);
   await main.locator('#nickname').fill('숲지기');
   await caption(main, '01', '친구들과 같은 방으로', '닉네임과 방 코드로 모여요. 설치 없이 함께할 준비.');
@@ -119,7 +119,7 @@ try {
   contexts.push(friendContext);
   const friend = await friendContext.newPage(); remember(friend);
   await friend.goto(base + '/?record=1&room=' + code);
-  await friend.waitForSelector('.connection.connected');
+  await friend.waitForSelector('.connection.connected', { state: 'attached' });
   await friend.locator('#nickname').fill('달팽이');
   await button(friend, '#join-room');
   assert.equal((await inspect(friend)).room!.code, code);
@@ -188,7 +188,7 @@ try {
   contexts.push(isolatedContext);
   const isolated = await isolatedContext.newPage(); remember(isolated);
   await isolated.goto(base + '/?record=1');
-  await isolated.waitForSelector('.connection.connected');
+  await isolated.waitForSelector('.connection.connected', { state: 'attached' });
   const size = await isolated.evaluate(() => ({ width: document.documentElement.scrollWidth, viewport: innerWidth }));
   assert.ok(size.width <= size.viewport + 1, 'Mobile entry should not overflow horizontally');
   await isolated.locator('#nickname').fill('다른 원정대');
@@ -247,6 +247,10 @@ try {
   checks.push({ name: '두 클라이언트의 브라우저 실행 오류 없음', passed: true });
   await mainContext.close();
   videoPath = await video.path();
+} catch (error) {
+  const failedPage = contexts[0]?.pages()[0];
+  if (failedPage) await failedPage.screenshot({ path: resolve(directory, 'failure.png') }).catch(() => {});
+  throw error;
 } finally {
   for (const context of contexts.reverse()) await context.close().catch(() => {});
   await browser.close();
