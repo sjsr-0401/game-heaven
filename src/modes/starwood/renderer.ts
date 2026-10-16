@@ -46,6 +46,14 @@ export class ForestRenderer {
     const col = Math.floor((x - GRID.x + 32) / GRID.step), row = Math.floor((y - GRID.y + 32) / GRID.step);
     return col >= 0 && col < GRID.cols && row >= 0 && row < GRID.rows ? row * GRID.cols + col : -1;
   }
+  unitAt(x:number,y:number):number|null {
+    const units=[...(this.state?.defenders??[])].sort((a,b)=>slotPosition(b.slot).y-slotPosition(a.slot).y);
+    for(const unit of units){
+      const p=this.positions.get(unit.id)??slotPosition(unit.slot);
+      if(x>=p.x-25&&x<=p.x+25&&y>=p.y-68&&y<=p.y+14)return unit.id;
+    }
+    return null;
+  }
   private smooth(id: number, point: {x:number;y:number}, dt: number): {x:number;y:number} {
     const old = this.positions.get(id) ?? point, alpha = 1-Math.exp(-dt*22);
     const value={x:old.x+(point.x-old.x)*alpha,y:old.y+(point.y-old.y)*alpha};

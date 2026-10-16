@@ -105,7 +105,12 @@ try{
   checks.push({name:'사용자 클릭으로 효과음 활성화 후 전투 실행 오류 없음',passed:true});
 
   await caption(main,'02','작은 도형 대신, 사람형 용병','사수·연금술사·검사·술사. 얼굴과 장비, 역할을 구분합니다.');
-  await selectSlot(main,own[0].slot);await main.waitForTimeout(1800);
+  const bodyPosition=slotPosition(own[0].slot),bodyClick=await fieldPoint(main,bodyPosition.x,bodyPosition.y-48);
+  await main.mouse.click(bodyClick.x,bodyClick.y);
+  await main.waitForTimeout(350);
+  assert.equal(await main.locator('.guardian-heading h3').innerText(),'유랑 사수');
+  checks.push({name:'사람형 캐릭터 몸통을 눌러 선택하는 실제 포인터 판정',passed:true});
+  await main.waitForTimeout(1400);
   await caption(main,'03','끌어서 배치하고, 전열 바꾸기','같은 칸의 친구 용병은 친구의 독립 전장에 남습니다.');
   const from=slotPosition(own[0].slot),to=slotPosition(9),a=await fieldPoint(main,from.x,from.y),b=await fieldPoint(main,to.x,to.y);
   await main.mouse.move(a.x,a.y,{steps:12});await main.mouse.down();await main.mouse.move(b.x,b.y,{steps:35});await main.waitForTimeout(250);await main.mouse.up();

@@ -56,8 +56,8 @@ export class StarwoodView implements ClientMode {
       if(event.button!==0||!this.state)return;
       const point=this.renderer.point(event);
       if(this.aiming){this.send({kind:'burst',...point});this.cancelAim();return;}
-      const slot=this.renderer.slotAt(point.x,point.y);
-      const unit=this.state.defenders.find(d=>d.ownerId===this.boardId&&d.slot===slot);
+      const unitId=this.renderer.unitAt(point.x,point.y);
+      const unit=this.state.defenders.find(d=>d.id===unitId);
       this.selected=unit?.id??null;this.renderer.selected=this.selected;this.uiAt=0;this.refreshUI();
       if(unit&&this.canCommand()){this.pointerStart={id:unit.id,...point};canvas.setPointerCapture(event.pointerId);}
     },{signal});
