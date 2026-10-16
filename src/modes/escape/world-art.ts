@@ -46,7 +46,7 @@ export function loadWorldArt():Promise<void>{
 }
 export function scenery(name:string,x:number,z:number,size:number,rotation=0,tint='#ffffff'):T.Mesh|null{
  const geo=models.get(name);if(!geo)return null;
- const paint=material.clone();paint.userData.shared=false;paint.transparent=true;paint.color.set(tint);const mesh=new T.Mesh(geo,paint);mesh.position.set(x,.02,z);mesh.scale.setScalar(size);mesh.rotation.y=rotation;mesh.castShadow=true;mesh.receiveShadow=true;return mesh;
+ const paint=material.clone();paint.userData.shared=false;paint.color.set(tint);const mesh=new T.Mesh(geo,paint);mesh.position.set(x,.02,z);mesh.scale.setScalar(size);mesh.rotation.y=rotation;mesh.castShadow=true;mesh.receiveShadow=true;return mesh;
 }
 const signs=new Map<string,T.MeshBasicMaterial>(),signPlane=new T.PlaneGeometry(1,1);
 signPlane.userData.shared=true;

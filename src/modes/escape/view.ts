@@ -64,13 +64,13 @@ export class EscapeView implements ClientMode {
     const reticle=this.context.element.querySelector<HTMLElement>('.aim-reticle')!,rect=this.scene.canvas.getBoundingClientRect();
     reticle.hidden=false;reticle.style.left=(this.pointer.x-rect.left)+'px';reticle.style.top=(this.pointer.y-rect.top)+'px';
     const target=this.scene.aimHint(),hint=this.context.element.querySelector<HTMLElement>('.target-hint')!,own=this.state?.crew.find(p=>p.id===this.context.playerId);
-    hint.hidden=!target||this.state?.phase!=='travel'||!!own?.carry;
-    if(!hint.hidden&&target){hint.textContent=target.label;hint.style.left=Math.min(rect.width-205,Math.max(10,this.pointer.x-rect.left+18))+'px';hint.style.top=Math.min(rect.height-126,Math.max(72,this.pointer.y-rect.top+18))+'px';hint.style.borderColor=target.color;}
+    hint.hidden=!target||this.state?.phase!=='travel'||!!own?.carry||!!(own&&this.state&&own.downUntil>this.state.clock);
+    if(!hint.hidden&&target){const range=12+(this.state?.upgrades.reel??0)*3+(target.type==='gate'?3.6:0),outside=!!own&&dist(own,this.mouse)>range;hint.textContent=target.label+(outside?' · 사거리 밖':'');hint.classList.toggle('outside',outside);hint.style.left=Math.max(10,Math.min(rect.width-285,this.pointer.x-rect.left+18))+'px';hint.style.top=Math.min(rect.height-126,Math.max(72,this.pointer.y-rect.top+18))+'px';hint.style.borderColor=outside?'#9b9785':target.color;}
 
   }
   private hook():void {if(!this.state||this.state.phase!=='travel'){this.pressed=false;return;}this.updateAim();this.context.command({kind:'hook',...this.mouse});this.nextHook=performance.now()+520;}
   private motion():{x:number;z:number} {
-    if(document.querySelector('dialog[open]')||!this.state||this.state.phase==='won'||this.state.phase==='lost')return{x:0,z:0};
+    if(document.querySelector('dialog[open]')||!this.state||this.state.phase!=='travel'||(this.state.crew.find(p=>p.id===this.context.playerId)?.downUntil??0)>this.state.clock)return{x:0,z:0};
     const horizontal=Number(this.keys.has('d')||this.keys.has('arrowright'))-Number(this.keys.has('a')||this.keys.has('arrowleft'));
     const vertical=Number(this.keys.has('w')||this.keys.has('arrowup'))-Number(this.keys.has('s')||this.keys.has('arrowdown'));
     const length=Math.max(1,Math.hypot(horizontal,vertical));

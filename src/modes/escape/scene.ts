@@ -292,7 +292,7 @@ export class EscapeScene {
   private raycaster=new T.Raycaster();private plane=new T.Plane(new T.Vector3(0,1,0),-.4);private vector=new T.Vector3();
   private ash:T.InstancedMesh;private dummy=new T.Object3D();private width=1;private height=1;
   constructor(private container:HTMLElement,private showcase=false) {
-    this.renderer=new T.WebGLRenderer({antialias:false,alpha:false,powerPreference:'high-performance'});
+    this.renderer=new T.WebGLRenderer({antialias:this.quality!=='economy'&&!this.helper,alpha:false,powerPreference:'high-performance'});
     this.canvas=this.renderer.domElement;this.canvas.setAttribute('aria-label','집째로 도망 3D 전장');this.canvas.tabIndex=0;container.append(this.canvas);
     this.renderer.setPixelRatio(this.quality==='economy'?.6:Math.min(devicePixelRatio,this.quality==='high'?1.5:1));this.renderer.shadowMap.enabled=this.quality==='high';this.renderer.shadowMap.type=T.PCFShadowMap;this.renderer.shadowMap.autoUpdate=false;
     this.renderer.outputColorSpace=T.SRGBColorSpace;this.renderer.toneMapping=T.ACESFilmicToneMapping;this.renderer.toneMappingExposure=1.02;
@@ -519,7 +519,7 @@ export class EscapeScene {
       }
       this.raycaster.far=Infinity;
     }
-    for(const object of occluders){const paint=object.material as T.MeshLambertMaterial,target=blocked.has(object)?.18:1;paint.opacity+=(target-paint.opacity)*(1-Math.exp(-dt*(target<paint.opacity?18:6)));paint.depthWrite=paint.opacity>.98;}
+    for(const object of occluders){const paint=object.material as T.MeshLambertMaterial,target=blocked.has(object)?0:1;paint.opacity+=(target-paint.opacity)*(1-Math.exp(-dt*(target<paint.opacity?18:6)));if(paint.opacity>.985)paint.opacity=1;object.visible=paint.opacity>.015;const fading=paint.opacity<1;if(paint.transparent!==fading){paint.transparent=fading;paint.needsUpdate=true;}paint.depthWrite=!fading;}
     this.light.position.set(-14,30,this.viewZ-12);this.light.target.position.set(0,0,this.viewZ+3);
     this.aimRing.visible=!!own&&s?.phase==='travel';this.aimRing.position.set(this.aim.x,s&&this.hovered?.type!=='enemy'&&this.hovered?.type!=='gate'&&onDeck(this.aim,s.house)?1.69:.09,this.aim.z);(this.aimRing.material as T.MeshBasicMaterial).color.set(this.hovered?.color??'#fff0b2');
     this.trajectory.visible=!!own?.carry&&s?.phase==='travel';if(this.trajectory.visible&&own){

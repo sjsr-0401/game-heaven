@@ -25,3 +25,5 @@
 .target-hint{position:absolute;pointer-events:none;padding:5px 8px;color:#f4e7ca;background:#273543ed;border-left:3px solid #e6bf6a;border-radius:2px;font-size:11px;white-space:nowrap;z-index:8}
 
 .name-tag.protected{border-top:2px solid #f4e7ca;box-shadow:0 0 0 1px #f4e7ca77}
+
+.target-hint{max-width:min(275px,calc(100vw - 20px));white-space:normal;line-height:1.5}.target-hint.outside{color:#c5c3af;border-left-color:#9b9785}

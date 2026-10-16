@@ -130,8 +130,6 @@ export function advanceEscapeAudio(s:EscapeState):void {
   }
  }
  const beat=Math.floor(s.clock/.65);if(beat===lastBeat)return;lastBeat=beat;if(s.phase==='won'||s.phase==='lost')return;
- const bass=[65.4,65.4,77.8,58.3][Math.floor(beat/8)%4];
- if(beat%2===0)pulse(bass,bass,.55,.008,'sine');
- if(s.phase==='camp'&&beat%2===0){const notes=[261.6,329.6,392,293.7];pulse(notes[Math.floor(beat/2)%4],notes[Math.floor(beat/2)%4],.45,.009,'sine');}
- if(beat%4===0)impact(.3,.01,s.biome==='canal'?1400:850,'lowpass');
+ if(s.phase==='travel'&&s.house.speed>0){const engine=43+s.house.speed*18;pulse(engine,engine*.985,.72,.004,'triangle');}
+ if(beat%8===0)impact(.9,s.biome==='canal'?.004:.006,s.biome==='canal'?1400:850,'lowpass');
 }
