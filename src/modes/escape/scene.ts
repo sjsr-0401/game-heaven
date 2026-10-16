@@ -1,4 +1,5 @@
 import * as T from 'three';
+import {crewIndex} from './ui-art.js';
 import {loadWorldArt,scenery,streetSign,artStatus} from './world-art.js';
 import {mergeGeometries} from 'three/addons/utils/BufferGeometryUtils.js';
 import {onDeck,clamp,PROP_INFO,type EscapeState,type PropKind,type CrewActor,type Enemy,type EscapeEvent,type Vec} from '../../../shared/escape.js';
@@ -54,15 +55,31 @@ function ring(radius:number,color:string,opacity=.8):T.Mesh {
 }
 interface WorkerRig {root:T.Group;body:T.Group;arms:T.Group[];legs:T.Group[];head:T.Group;lamp:T.Mesh;shadow:T.Mesh}
 function worker(color:string,index:number):WorkerRig {
-  const root=new T.Group(),body=new T.Group();root.add(body);
+  const root=new T.Group(),body=new T.Group();root.add(body);root.scale.setScalar(1.08);
   const skin=['#d8a57d','#bf825f','#edc7a1','#b67c5c'][index%4],dark='#303c43';
   cylinder(body,0,.96,0,.31,.4,.73,color,8);box(body,0,1.05,.285,.4,.4,.1,'#e7dbc1');box(body,0,.68,0,.76,.12,.52,dark);
   const head=new T.Group();head.position.set(0,1.52,0);body.add(head);
   ball(head,0,.03,0,.32,skin,2);box(head,0,-.07,.26,.32,.17,.12,skin);
   for(const side of [-1,1]){box(head,side*.12,.065,.296,.095,.1,.045,'#fff1d4');box(head,side*.12,.06,.326,.045,.065,.02,dark);}
   box(head,0,-.09,.323,.13,.025,.02,'#724b3e');
-  cylinder(head,0,.26,0,.27,.34,.2,color,12);box(head,0,.17,.21,.72,.06,.34,color);box(head,0,.3,.27,.24,.16,.1,dark);
-  const lamp=box(head,0,.3,.34,.13,.09,.035,'#ffe6ac',0,0,0,1.4);
+  const hair=['#634634','#303641','#704934','#3a302c'][index%4];
+  ball(head,0,.12,-.035,.33,hair,1);box(head,0,-.02,.27,.35,.25,.12,skin);
+  for(const side of [-1,1]){box(head,side*.12,.065,.32,.095,.1,.045,'#fff1d4');box(head,side*.12,.06,.35,.045,.065,.02,dark);}
+  ball(head,0,-.025,.37,.055,skin,1);box(head,0,-.125,.351,.14,.025,.025,'#754c3e');
+  if(index%4===0){
+    cylinder(head,0,.26,0,.27,.35,.21,color,12);box(head,0,.17,.21,.75,.07,.37,color);box(head,0,.3,.27,.25,.16,.1,dark);
+  }else if(index%4===1){
+    cylinder(head,0,.26,-.03,.29,.33,.18,color,10);box(head,0,.21,.3,.64,.06,.42,color);box(head,0,.31,.1,.56,.05,.45,'#e6d5b1');
+    for(const side of [-1,1])cylinder(head,side*.13,.05,.35,.105,.105,.05,dark,10,Math.PI/2);
+  }else if(index%4===2){
+    ball(head,0,.27,-.03,.32,color,1);cylinder(head,0,.19,0,.33,.33,.13,'#d6c8ab',10);
+    ball(head,.28,-.03,-.25,.2,hair,1);box(body,0,1.36,.25,.67,.13,.18,'#dcaa70');box(body,-.18,1.1,.35,.18,.45,.08,'#dcaa70',0,0,-.13);
+  }else{
+    for(const side of [-1,1]){ball(head,side*.34,.05,-.02,.16,color,1);box(head,side*.33,.11,-.03,.15,.31,.23,color);}
+    box(head,0,.36,-.04,.65,.09,.26,color);ball(head,.07,.29,.06,.24,hair,1);
+    box(body,.43,.65,0,.34,.34,.3,'#d6aa6e');
+  }
+  const lamp=box(head,0,.3,.34,.12,.085,.035,'#ffe6ac',0,0,0,index%4===0?.8:0);
   box(body,0,1,-.37,.54,.58,.3,'#614c3e');box(body,0,1.08,-.55,.44,.12,.08,'#d8c3a0');
   cylinder(body,-.26,1,-.4,.07,.07,.55,'#b7cec5',8);cylinder(body,.26,1,-.4,.07,.07,.55,'#b7cec5',8);
   const arms:T.Group[]=[],legs:T.Group[]=[];
@@ -245,7 +262,7 @@ export class EscapeScene {
   private eventListener:(e:EscapeEvent)=>void=()=>{};private nextShadow=0;private frameCount=0;private totalFrameMs=0;
   private raycaster=new T.Raycaster();private plane=new T.Plane(new T.Vector3(0,1,0),-.4);private vector=new T.Vector3();
   private ash:T.InstancedMesh;private dummy=new T.Object3D();private width=1;private height=1;
-  constructor(private container:HTMLElement) {
+  constructor(private container:HTMLElement,private showcase=false) {
     this.renderer=new T.WebGLRenderer({antialias:true,alpha:false,powerPreference:'high-performance'});
     this.canvas=this.renderer.domElement;this.canvas.setAttribute('aria-label','집째로 도망 3D 전장');this.canvas.tabIndex=0;container.append(this.canvas);
     this.renderer.setPixelRatio(this.quality==='economy'?.6:Math.min(devicePixelRatio,this.quality==='high'?1.5:1));this.renderer.shadowMap.enabled=this.quality==='high';this.renderer.shadowMap.type=T.PCFShadowMap;this.renderer.shadowMap.autoUpdate=false;
@@ -353,7 +370,7 @@ export class EscapeScene {
       this.gate.visible=!s.gate.open&&s.stage<3;this.gate.position.z=s.gate.z;this.gate.userData.pick={x:0,z:s.gate.z};
       const alive=new Set(s.crew.filter(p=>!p.left).map(p=>p.id));
       for(const p of s.crew.filter(p=>!p.left)){
-        let rig=this.crew.get(p.id);if(!rig){rig=worker(p.color,s.crew.indexOf(p));this.crew.set(p.id,rig);rig.root.position.set(p.x,0,p.z);this.scene.add(rig.root);}
+        let rig=this.crew.get(p.id);if(!rig){rig=worker(p.color,crewIndex(p.color));this.crew.set(p.id,rig);rig.root.position.set(p.x,0,p.z);this.scene.add(rig.root);}
         const own=p.id===this.ownId,lag=own?Math.min((now-this.received)/1000,.16):0;
         const velocity=p.dodgeUntil>s.clock?12:p.carry?3.6:4.5;
         const tx=p.x+(own?this.input.x*velocity*lag:0),tz=p.z+(own?this.input.z*velocity*lag:0);
@@ -398,7 +415,18 @@ export class EscapeScene {
         this.scene.add(g);this.hazards.set(h.id,g);
       }g.position.set(h.x,.1,h.z);g.scale.setScalar(1+Math.sin(clock*18)*.025);}
       for(const[key,g]of this.hazards)if(!hazards.has(key)){this.remove(g);this.hazards.delete(key);}
-    }else this.gate.visible=false;
+    }else{
+      this.gate.visible=false;
+      if(this.showcase){
+        const colors=['#f5bd62','#65d5cc','#ae9bfa','#f08d9c'];
+        for(let i=0;i<4;i++){
+          const id='menu-'+i;let rig=this.crew.get(id);if(!rig){rig=worker(colors[i],i);this.crew.set(id,rig);this.scene.add(rig.root);}
+          rig.root.position.set(i%2?-3.2:3.15,1.61,i<2?-3.6:3.2);rig.root.rotation.y=i%2?-.45:2.5;
+          rig.body.rotation.z=Math.sin(clock*1.7+i)*.025;rig.body.position.y=Math.sin(clock*2+i)*.025;
+          rig.arms[1].rotation.x=i===0?-.9+Math.sin(clock*2)*.25:Math.sin(clock*2+i)*.05;
+        }
+      }
+    }
     for(const fx of this.effects){
       fx.life-=dt;const t=1-fx.life/fx.max;
       if(fx.kind==='burst'){

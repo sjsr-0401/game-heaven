@@ -14,7 +14,7 @@ export class EscapeSession implements ModeSession {
     this.seed=seed>>>0;
     const maxHp=200+players.length*20;
     this.state={version:ESCAPE_VERSION,clock:0,phase:'travel',stage:1,biome:'quarry',house:{x:0,z:0,hp:maxHp,maxHp,boostUntil:0,speed:0},
-      stormZ:-32,crew:players.map((p,i)=>({id:p.id,name:p.name,color:CREW_COLORS[i],x:i%2===0?-3.1:3.1,z:Math.floor(i/2)*2-1,
+      stormZ:-32,crew:players.map((p,i)=>({id:p.id,name:p.name,color:CREW_COLORS.find(color=>color===p.color)??CREW_COLORS[i],x:i%2===0?-3.1:3.1,z:Math.floor(i/2)*2-1,
         hp:100,maxHp:100,aimX:i%2===0?-1:1,aimZ:.1,carry:null,downUntil:0,invulnerableUntil:0,dodgeUntil:0,dodgeReady:0,hookReady:0,throwReady:0,walk:0,left:false,
         stats:{hooks:0,throws:0,rescues:0,repairs:0,deliveries:0,damage:0,downs:0}})),
       props:[],enemies:[],hazards:[],events:[],gate:{z:44,hp:200+players.length*35,maxHp:200+players.length*35,open:false},

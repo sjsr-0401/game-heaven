@@ -91,3 +91,8 @@ test('production commands can complete seeded two, three and four-player expedit
     assert.equal(g.state.phase,'won',n+'P seed '+seed+' must reach a genuine victory');assert.equal(g.state.bossDefeated,true);assert.ok(Number.isFinite(g.state.house.hp));assert.ok(g.state.crew.every(p=>Number.isFinite(p.x)&&Number.isFinite(p.z)));
   }console.log('EXPEDITION_SAMPLES '+JSON.stringify(results));
 });
+
+test('crew colors stay attached to their identities when lobby order changes',()=>{
+ const roster=players(2);roster[0].color='#65d5cc';roster[1].color='#f08d9c';const g=new EscapeSession(roster,41);
+ assert.equal(g.state.crew.find(p=>p.id===roster[0].id)!.color,'#65d5cc');assert.equal(g.state.crew.find(p=>p.id===roster[1].id)!.color,'#f08d9c');
+});

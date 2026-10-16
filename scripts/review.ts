@@ -11,7 +11,7 @@ const segments:{start:number;end:number;title:string;description:string}[]=[];
 const sourceCommit=process.env.GITHUB_SHA??'uncommitted';
 await mkdir('artifacts',{recursive:true});
 const browser=await chromium.launch({headless:true,args:['--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling','--use-angle=swiftshader','--enable-unsafe-swiftshader','--disable-gpu-sandbox','--autoplay-policy=no-user-gesture-required']});
-const contexts:BrowserContext[]=[],pages:Page[]=[],errors:string[]=[],keys=new Map<Page,Set<string>>(),lastActions=new Map<string,number>();
+const contexts:BrowserContext[]=[],pages:Page[]=[],errors:string[]=[],keys=new Map<Page,Set<string>>(),lastActions=new Map<string,number>(),debugActions=new Map<string,number>();
 let main:Page,videoStart=0,mainContext:BrowserContext,audio:{base64:string;startedAt:number}|null=null;
 const now=()=> (Date.now()-videoStart)/1000;
 function check(name:string,passed=true):void{checks.push({name,passed});assert.ok(passed,name);console.log('CHECK '+name);}
@@ -48,6 +48,7 @@ async function agent(page:Page,index:number):Promise<void>{
     const targetId=(d.aim as {id?:string}).id,enemy=s.enemies.find(e=>e.id===targetId),crew=s.crew.find(c=>c.id===targetId),prop=s.props.find(o=>o.id===targetId);
     const y=enemy?(enemy.kind==='devourer'?1.6:1):crew?(onDeck(crew,s.house)?1.61:0)+(crew.downUntil>s.clock?.45:1):prop?(onDeck(prop,s.house)?1.61:0)+.5:1.3;
     const point=await page.evaluate(v=>window.__review!.project(v.x,v.z,v.y),{...d.aim,y}),size=page.viewportSize()!;
+    if((debugActions.get(p.id)??0)<3){debugActions.set(p.id,(debugActions.get(p.id)??0)+1);const hit=point?await page.evaluate(v=>{const el=document.elementFromPoint(v.x,v.y);return{tag:el?.tagName,class:el?.className,focus:document.hasFocus(),scrollX,scrollY,viewport:{w:innerWidth,h:innerHeight}};},point):null;console.log('AGENT_POINTER '+JSON.stringify({index,action:d.action,from:{x:p.x,z:p.z},aim:{x:d.aim.x,z:d.aim.z,y},point,size,hit}));}
     if(point?.visible&&point.y>70&&point.y<size.height-105&&point.x>8&&point.x<size.width-8){await page.mouse.move(point.x,point.y);await page.mouse.click(point.x,point.y,{button:d.action==='throw'?'right':'left'});}
   }else await page.keyboard.press(d.action==='dodge'?'Space':d.action==='install'?'e':'q');
   lastActions.set(p.id+d.action,Date.now()+(d.action==='hook'?550:d.action==='dodge'?1450:480));
