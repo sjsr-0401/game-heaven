@@ -33,11 +33,12 @@ jobs:
         run: npm test
       - name: Install cloud browser
         run: npx playwright install --with-deps chromium
-      - name: Install Korean fonts
-        run: sudo apt-get install -y fonts-noto-cjk
+      - name: Install Korean fonts and video encoder
+        run: sudo apt-get install -y fonts-noto-cjk ffmpeg
       - name: Record real two-player gameplay
         env:
           REVIEW_BASE_URL: http://127.0.0.1:3000
+          FFMPEG_PATH: ffmpeg
         run: |
           npm start > /tmp/game-heaven-server.log 2>&1 &
           SERVER_PID=$!

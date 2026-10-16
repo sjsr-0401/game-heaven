@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import { mkdir, copyFile, writeFile } from 'node:fs/promises';
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
-import ffmpegPath from 'ffmpeg-static';
+import { createRequire } from 'node:module';
 import { chromium, type Page, type BrowserContext } from 'playwright';
 import { BOARD, slotPosition, trackPosition, type DefenseState, type Defender } from '../shared/defense.js';
 import type { RoomSnapshot } from '../shared/protocol.js';
@@ -11,6 +11,7 @@ interface Inspection { room: RoomSnapshot | null; playerId: string }
 interface ReviewWindow extends Window {
   __review: { snapshot(): Inspection; caption(number: string, title: string, text: string): void };
 }
+const ffmpegPath: unknown = process.env.FFMPEG_PATH ?? createRequire(import.meta.url)('ffmpeg-static');
 const base = process.env.REVIEW_BASE_URL ?? 'http://127.0.0.1:3000';
 const directory = resolve('artifacts');
 await mkdir(resolve(directory, 'raw'), { recursive: true });
@@ -251,7 +252,7 @@ try {
   await browser.close();
 }
 await copyFile(videoPath, resolve(directory, 'starwood-preview.webm'));
-assert.ok(ffmpegPath, 'FFmpeg must be available in the cloud runner');
+assert.ok(typeof ffmpegPath === 'string' && ffmpegPath.length > 0, 'FFmpeg must be available in the cloud runner');
 const output = resolve(directory, 'starwood-preview.mp4');
 const result = spawnSync(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', '-i', videoPath,
   '-c:v', 'libx264', '-preset', 'fast', '-crf', '24', '-pix_fmt', 'yuv420p',
