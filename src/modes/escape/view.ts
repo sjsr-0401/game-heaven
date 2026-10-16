@@ -140,7 +140,7 @@ export class EscapeView implements ClientMode {
   }
   private onEvent(e:EscapeEvent):void {
     playEscapeEvent(e);
-    if(e.type==='hit'&&e.value){const node=document.createElement('b');node.className='damage-float '+(e.text==='crew'||e.text==='house'?'hurt':'');node.textContent=String(e.value);node.dataset.x=String(e.x+(e.id%3-1)*.25);node.dataset.z=String(e.z);node.dataset.born=String(performance.now());this.floats.append(node);if(this.floats.children.length>35)this.floats.firstElementChild?.remove();}
+    if(e.type==='hit'&&e.value){const node=document.createElement('b');node.className='damage-float '+(e.text==='crew'||e.text==='house'?'hurt':'');node.textContent=e.text==='장갑'?'장갑 '+e.value:String(e.value);node.dataset.x=String(e.x+(e.id%3-1)*.25);node.dataset.z=String(e.z);node.dataset.born=String(performance.now());this.floats.append(node);if(this.floats.children.length>35)this.floats.firstElementChild?.remove();}
     if(['rescue','boss','camp','win','lose','upgrade'].includes(e.type)){
       const banner=this.context.element.querySelector<HTMLElement>('.event-announcement')!;banner.hidden=false;banner.dataset.until=String(performance.now()+2500);
       banner.querySelector('span')!.textContent=e.type==='rescue'?(e.by?'동료 구조':'긴급 복귀'):e.type==='upgrade'?'개조 완료':e.type==='boss'?(e.value?'추격자 출현':'길이 열렸다'):e.type==='camp'?'구역 이동':e.type==='win'?'탈출 성공':'원정 종료';

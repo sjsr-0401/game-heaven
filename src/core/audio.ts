@@ -41,7 +41,7 @@ export function setSoundEnabled(value:boolean):void{
     noise=audio.createBuffer(1,Math.ceil(audio.sampleRate*.7),audio.sampleRate);
     const data=noise.getChannelData(0);let seed=19723;
     for(let i=0;i<data.length;i++){seed=(Math.imul(seed,1664525)+1013904223)|0;data[i]=(seed>>>0)/2147483648-1;}
-    // Only the synthesized game bus is captured; no microphone or other app audio is requested.
+    // Only this game's mixed audio bus is captured; no microphone or other app audio is requested.
     if(new URLSearchParams(location.search).get('record')==='1'&&typeof MediaRecorder!=='undefined'){
       const destination=audio.createMediaStreamDestination();limiter.connect(destination);
       const mime=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':'audio/webm';
@@ -101,10 +101,10 @@ let lastBeat=-1,escapeHitAt=0;
 export function playEscapeEvent(e:EscapeEvent):void {
  if(!enabled||!audio)return;
  const pan=((e.x-listener.x)*.836+(e.z-listener.z)*.548)/15,range=Math.hypot(e.x-listener.x,e.z-listener.z),gain=1/(1+range*.025),rate=.96+(e.id%5)*.02;
- if(e.type==='hook'){if(!sample(e.id%2?'hook0':'hook1',.19*gain,rate,pan))impact(.1,.06,2600,'bandpass');impact(.07,.025,2100,'highpass');}
+ if(e.type==='hook'){if(!sample(e.id%2?'hook0':'hook1',.13*gain,rate,pan))impact(.1,.06,2600,'bandpass');impact(.07,.025,2100,'highpass');if(e.prop)sample('pickup',.18*gain,1.02,pan);}
  if(e.type==='throw'){sample('plank0',.1*gain,.9,pan);impact(.14,.035,1500,'bandpass');}
  if(e.type==='hit'&&performance.now()-escapeHitAt>55){
-  escapeHitAt=performance.now();const kind:Sample=e.text==='crew'?'hurt':e.text==='house'?e.id%2?'house0':'house1':e.text==='장갑'?'armor':e.id%2?'hit0':'hit1';
+  escapeHitAt=performance.now();const kind:Sample=e.text==='crew'?'hurt':e.text==='house'?e.id%2?'house0':'house1':e.text==='장갑'?'armor':e.text==='gate'?e.id%2?'plank0':'plank1':e.id%2?'hit0':'hit1';
   if(!sample(kind,(e.text==='crew'?.28:.24)*gain,rate,pan))impact(.12,.12,1100);
   if(e.text==='crew'||e.text==='house')pulse(72,32,.12,.025,'sine');
  }

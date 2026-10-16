@@ -91,7 +91,7 @@ export class EscapeSession implements ModeSession {
       if(!s.gate.open&&distanceToSegment({x:0,z:s.gate.z},p,end)<3.6&&Math.abs(s.gate.z-p.z)<=range)candidates.push({distance:Math.abs(s.gate.z-p.z),type:'gate',target:{x:0,z:s.gate.z}});
       const target=candidates.sort((a,b)=>a.distance-b.distance)[0];
       const point=target?.target??end;
-      this.event('hook',p,{by:id,toX:point.x,toZ:point.z});
+      this.event('hook',p,{by:id,toX:point.x,toZ:point.z,prop:target?.type==='prop'?(target.target as Prop).kind:undefined});
       if(target?.type==='crew'){
         const other=target.target as CrewActor;
         other.downUntil=0;other.hp=55;other.x=p.x+p.aimX*1.4;other.z=p.z+p.aimZ*1.4;other.invulnerableUntil=s.clock+2.5;
@@ -145,7 +145,7 @@ export class EscapeSession implements ModeSession {
   private damageGate(amount:number,by:string):void {
     const s=this.state;if(s.gate.open)return;
     s.gate.hp=Math.max(0,s.gate.hp-amount);const player=this.actor(by);if(player)player.stats.damage+=amount;
-    this.event('hit',{x:0,z:s.gate.z},{value:Math.round(amount),by});
+    this.event('hit',{x:0,z:s.gate.z},{value:Math.round(amount),by,text:'gate'});
     if(!s.gate.hp){s.gate.open=true;s.resources+=3;this.event('explode',{x:0,z:s.gate.z},{value:3,text:'길이 열렸다!'});}
   }
   private damage(e:Enemy,amount:number,by:string):void {

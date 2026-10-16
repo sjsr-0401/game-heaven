@@ -1,17 +1,19 @@
-import {chromium,type Page,type BrowserContext} from 'playwright';
-import {mkdir,writeFile,copyFile} from 'node:fs/promises';
+import {chromium,type Page,type BrowserContext,type CDPSession} from 'playwright';
+import {mkdir,writeFile,copyFile,open} from 'node:fs/promises';
 import {execFileSync,spawnSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {decide} from './crew-agent.js';
 import {onDeck,type EscapeState} from '../shared/escape.js';
 import type {RoomSnapshot} from '../shared/protocol.js';
-const base=process.env.REVIEW_BASE_URL??'http://127.0.0.1:3000',slice=process.env.REVIEW_SLICE_ONLY==='1';
+const base=process.env.REVIEW_BASE_URL??'http://127.0.0.1:3000',slice=process.env.REVIEW_SLICE_ONLY==='1',nativeCapture=process.env.REVIEW_CAPTURE==='native';
 const ffmpeg=process.env.FFMPEG_PATH??'ffmpeg',checks:{name:string;passed:boolean}[]=[],chapters:{title:string;description:string;seconds:number}[]=[];
 const segments:{start:number;end:number;title:string;description:string}[]=[];
 const sourceCommit=process.env.GITHUB_SHA??'uncommitted';
 await mkdir('artifacts',{recursive:true});
-const browser=await chromium.launch({headless:true,args:['--use-gl=angle','--use-angle=swiftshader-webgl','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling','--enable-unsafe-swiftshader','--disable-gpu-sandbox','--autoplay-policy=no-user-gesture-required']});
+const browser=await chromium.launch({headless:true,channel:nativeCapture?'chromium':undefined,args:['--use-gl=angle','--use-angle=swiftshader-webgl','--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling','--enable-unsafe-swiftshader','--disable-gpu-sandbox','--autoplay-policy=no-user-gesture-required']});
 const contexts:BrowserContext[]=[],pages:Page[]=[],errors:string[]=[],keys=new Map<Page,Set<string>>(),lastActions=new Map<string,number>(),debugActions=new Map<string,number>();
+let nativeSession:CDPSession|null=null,nativeStream='';
+let firstThrowAt=0;
 let main:Page,videoStart=0,mainContext:BrowserContext,audio:{base64:string;startedAt:number}|null=null;
 const now=()=> (Date.now()-videoStart)/1000;
 function check(name:string,passed=true):void{checks.push({name,passed});assert.ok(passed,name);console.log('CHECK '+name);}
@@ -24,12 +26,12 @@ async function playfieldFits(page:Page):Promise<boolean>{
  });
 }
 async function newPage(name:string,record=false):Promise<Page>{
-  const context=await browser.newContext({viewport:record?{width:1280,height:800}:{width:960,height:700},deviceScaleFactor:record?1:.65,...(record?{recordVideo:{dir:'artifacts/raw',size:{width:1280,height:800}}}:{})});
+  const context=await browser.newContext({viewport:record?{width:1280,height:800}:{width:960,height:700},deviceScaleFactor:record?1:.65,...(record&&!nativeCapture?{recordVideo:{dir:'artifacts/raw',size:{width:1280,height:800}}}:{})});
   contexts.push(context);const page=await context.newPage();pages.push(page);keys.set(page,new Set());
   // Every crew member represents a separate computer, not competing tabs on one desktop.
   const focus=await context.newCDPSession(page);await focus.send('Emulation.setFocusEmulationEnabled',{enabled:true});
   page.on('pageerror',e=>errors.push(e.message));page.on('console',message=>{if(message.type()==='error'&&!message.text().includes('favicon'))errors.push(message.text());});
-  if(record)videoStart=Date.now();
+  if(record){videoStart=Date.now();if(nativeCapture){nativeSession=await context.newCDPSession(page);const send=nativeSession.send.bind(nativeSession) as (method:string,params?:Record<string,unknown>)=>Promise<any>;const started=await send('Page.startScreenRecording',{audio:false,maxWidth:1280,maxHeight:800,frameRate:25});nativeStream=started.stream;}}
   await page.goto(base+'/?review=1'+(record?'&record=1&graphics=economy':'&graphics=economy&review-helper=1'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
   return page;
 }
@@ -93,7 +95,7 @@ try{
     if(s.clock-loggedAt>20){loggedAt=s.clock;console.log('PLAY_PROGRESS '+JSON.stringify({clock:Math.round(s.clock),stage:s.stage,phase:s.phase,distance:Math.round(s.house.z),hull:Math.round(s.house.hp),crew:s.crew.map(p=>({name:p.name,...p.stats})),metrics:await main.evaluate(()=>window.__review!.metrics())}));}
     if(!savedPoster&&s.clock>12){savedPoster=true;await main.screenshot({path:'artifacts/poster.png'});await main.screenshot({path:'artifacts/combat.png'});}
     if(!sawCarry&&s.crew.some(p=>p.carry)){sawCarry=true;await section('갈고리 회수와 투척','고철은 납품하고, 다가오는 적에게는 화약통을 던집니다.',22);}
-    if(!sawThrow&&s.crew.some(p=>p.stats.throws>0)){sawThrow=true;check('실제 물체 회수와 투척',true);}
+    if(!sawThrow&&s.crew.some(p=>p.stats.throws>0)){sawThrow=true;firstThrowAt=now();check('실제 물체 회수와 투척',true);}
     if(!sawGate&&!s.gate.open&&s.gate.z-s.house.z<12){sawGate=true;await section('검문소 돌파','먼저 길을 열지 않으면 집도 멈춥니다. 갈고리와 화약통으로 뚫어 보세요.',22);await main.screenshot({path:'artifacts/gate.png'});}
     if(!sawCamp&&s.phase==='camp'){sawCamp=true;await section('정비소','모은 부품으로 장비를 고칩니다. 다음 경로는 투표로 결정합니다.',17);await main.screenshot({path:'artifacts/camp.png'});check('장애물 돌파 후 정비와 경로 투표',true);}
     if(!sawSecond&&s.stage===2){sawSecond=true;await section('운하로 진입','정비를 마친 집으로 다음 구역에 들어갑니다. 빠른 수거기를 조심하세요.',20);canalShotAt=s.clock+3;}
@@ -137,13 +139,22 @@ try{
   const fourPlayerIds=(fourStates[0].room!.game as EscapeState).crew.map(p=>p.id);
   await main.reload();await main.locator('.world canvas').waitFor();check('4인 원정 재접속 유지',(await snapshot(main)).playerId===fourStates[0].playerId&&((await snapshot(main)).room!.game as EscapeState).crew.map(p=>p.id).join()===fourPlayerIds.join());
   check('브라우저 런타임 오류 없음',errors.length===0);
-  const video=main.video()!;for(const context of contexts)await context.close().catch(()=>{});await browser.close();
-  const raw=await video.path();await copyFile(raw,'artifacts/source.webm');
+  let recordingWallSeconds=(Date.now()-videoStart)/1000;
+  const captureSession=nativeSession as CDPSession|null;
+  if(captureSession){
+    const send=captureSession.send.bind(captureSession) as (method:string,params?:Record<string,unknown>)=>Promise<any>,stopped=await send('Page.stopScreenRecording'),handle=stopped.stream??nativeStream;
+    const output=await open('artifacts/source.webm','w');
+    try{for(;;){const chunk=await captureSession.send('IO.read',{handle,size:1024*1024});await output.write(Buffer.from(chunk.data,chunk.base64Encoded?'base64':'utf8'));if(chunk.eof)break;}}finally{await output.close();await captureSession.send('IO.close',{handle});}
+  }
+  const video=nativeCapture?null:main.video()!;for(const context of contexts)await context.close().catch(()=>{});await browser.close();
+  if(video){const raw=await video.path();await copyFile(raw,'artifacts/source.webm');}
   if(audio)await writeFile('artifacts/audio.webm',Buffer.from(audio.base64,'base64'));
   const full='artifacts/full-playthrough.mp4',target='artifacts/houseflight-preview.mp4';
   const offset=audio?Math.max(0,Math.round(audio.startedAt-videoStart)):0;
   execFileSync(ffmpeg,['-y','-i','artifacts/source.webm',...(audio?['-i','artifacts/audio.webm','-filter_complex','[1:a]adelay='+offset+'|'+offset+',apad[a]','-map','0:v:0','-map','[a]']:[]),'-c:v','libx264','-preset','ultrafast','-crf','25','-r','25','-pix_fmt','yuv420p',...(audio?['-c:a','aac','-b:a','96k','-shortest']:[]),'-movflags','+faststart',full],{stdio:'pipe',timeout:300000});
   const fullDuration=Number(execFileSync('ffprobe',['-v','error','-show_entries','format=duration','-of','default=noprint_wrappers=1:nokey=1',full],{encoding:'utf8'}));
+  if(nativeCapture)check('녹화가 실제 경과 시간과 같은 속도로 재생됨',Math.abs(fullDuration-recordingWallSeconds)<3);
+  if(firstThrowAt>0)execFileSync(ffmpeg,['-y','-ss',String(Math.max(0,firstThrowAt-.65)),'-i',full,'-vf','fps=6,crop=900:600:190:150,scale=450:300,tile=4x2','-frames:v','1','artifacts/action-strip.jpg'],{stdio:'pipe',timeout:60000});
   const sorted=segments.map(s=>({...s,start:Math.max(0,s.start),end:Math.min(s.end,fullDuration-.5)})).filter(s=>s.end>s.start).sort((a,b)=>a.start-b.start);
   const merged:typeof sorted=[];for(const segment of sorted){const previous=merged.at(-1);if(previous&&segment.start<previous.end){previous.end=Math.max(previous.end,segment.end);}else merged.push({...segment});}
   let outTime=0;const filters:string[]=[];merged.forEach((segment,i)=>{
@@ -157,7 +168,7 @@ try{
   let audioPeakDb:number|null=null;
   if(audio){execFileSync(ffmpeg,['-v','error','-i',target,'-map','0:a:0','-f','null','-'],{stdio:'pipe',timeout:60000});check('실제 게임 음성 트랙 디코딩',true);const volume=spawnSync(ffmpeg,['-hide_banner','-i',target,'-vn','-af','volumedetect','-f','null','-'],{encoding:'utf8',timeout:60000});audioPeakDb=Number(volume.stderr.match(/max_volume: (-?\d+(?:\.\d+)?)/)?.[1]);check('녹음된 실제 소리가 무음이 아님',volume.status===0&&Number.isFinite(audioPeakDb)&&audioPeakDb> -50);}
   execFileSync(ffmpeg,['-y','-i',target,'-vf','fps=1/20,scale=480:-1,tile=3x3','-frames:v','1','artifacts/combat-sheet.jpg'],{stdio:'pipe',timeout:60000});
-  const metadata={title:'집째로 도망',version:'1.0.0',sourceCommit,repository:'sjsr-0401/game-heaven',fullRun:final.phase==='finished',realGameAudio:!!audio,audioPeakDb,sourceDurationSeconds:fullDuration,checks,chapters,segments:merged,metrics,twoPlayerMetrics,summary:{phase:finalGame.phase,seconds:finalGame.clock,distance:finalGame.distance,bossDefeated:finalGame.bossDefeated,players:finalGame.crew.length,contributions:finalGame.crew.map(p=>({name:p.name,...p.stats}))},limitations:['클라우드 브라우저의 실제 키보드·마우스 조작입니다. 사람의 재미 평가와 실제 가정용 인터넷 지연 검증은 별도입니다.','하이라이트는 실제 속도이며 구간 사이를 편집했습니다. 원본 전체 영상도 같은 클라우드 산출물에 포함합니다.']};
+  const metadata={title:'집째로 도망',version:'1.0.0',sourceCommit,repository:'sjsr-0401/game-heaven',fullRun:final.phase==='finished',realGameAudio:!!audio,audioPeakDb,sourceDurationSeconds:fullDuration,captureMethod:nativeCapture?'Chromium native screen recording':'Playwright video',recordingWallSeconds,checks,chapters,segments:merged,metrics,twoPlayerMetrics,summary:{phase:finalGame.phase,seconds:finalGame.clock,distance:finalGame.distance,bossDefeated:finalGame.bossDefeated,players:finalGame.crew.length,contributions:finalGame.crew.map(p=>({name:p.name,...p.stats}))},limitations:['클라우드 브라우저의 실제 키보드·마우스 조작입니다. 사람의 재미 평가와 실제 가정용 인터넷 지연 검증은 별도입니다.','하이라이트는 실제 속도이며 구간 사이를 편집했습니다. 원본 전체 영상도 같은 클라우드 산출물에 포함합니다.']};
   await writeFile('artifacts/verification.json',JSON.stringify(metadata,null,2));console.log('FINAL_REVIEW '+JSON.stringify(metadata));
 }catch(error){
   for(let i=0;i<Math.min(pages.length,4);i++)try{await pages[i].screenshot({path:'artifacts/failure-'+i+'.png'});}catch{}

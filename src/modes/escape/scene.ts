@@ -360,18 +360,21 @@ export class EscapeScene {
     if(e.type==='hit'&&e.text==='crew'&&e.by){const rig=this.crew.get(e.by);if(rig)rig.root.userData.hitUntil=this.elapsed+.22;if(e.by===this.ownId)this.shake=Math.max(this.shake,.065);}
     if(e.type==='hook'){
       const points=[new T.Vector3(e.x,atY+1.1,e.z),new T.Vector3(e.toX??e.x,atY+.7,e.toZ??e.z)];
-      const line=new T.Line(new T.BufferGeometry().setFromPoints(points),new T.LineBasicMaterial({color:'#fff0b5',transparent:true,opacity:1,depthTest:false}));
-      this.scene.add(line);this.effects.push({root:line,event:e,life:.2,max:.2,kind:'beam'});
+      const line=new T.Line(new T.BufferGeometry().setFromPoints(points),new T.LineBasicMaterial({color:'#f4db9a',transparent:true,opacity:1,depthTest:false}));
+      this.scene.add(line);this.effects.push({root:line,event:e,life:.16,max:.16,kind:'beam'});
     }
-    if(['hit','explode','kill','repair','rescue','install','upgrade','dodge','pad','ping'].includes(e.type)){
-      const count=e.type==='explode'?20:e.type==='hit'?7:12;
-      const color=e.type==='repair'||e.type==='rescue'?'#a3ebae':e.prop==='battery'?'#7bfff0':e.type==='hit'&&e.text==='crew'?'#ec8b70':'#ffcf85';
-      const burst=new T.InstancedMesh(geometry('burst',()=>new T.IcosahedronGeometry(1,0)),mat(color),count);burst.position.set(e.x,atY+.5,e.z);burst.instanceMatrix.setUsage(T.DynamicDrawUsage);
-      burst.userData.particles=Array.from({length:count},(_,i)=>{const a=i/count*Math.PI*2;return{position:new T.Vector3(Math.cos(a)*.12,Math.sin(i*3)*.1,Math.sin(a)*.12),velocity:new T.Vector3(Math.cos(a)*(2+i%3),1.5+i%4*.6,Math.sin(a)*(2+i%3)),radius:e.type==='explode'?.14:.08};});
-      this.scene.add(burst);this.effects.push({root:burst,event:e,life:.5,max:.5,kind:'burst'});
-      const r=ring(e.type==='explode'?1.3:.65,color);r.position.set(e.x,atY,e.z);this.scene.add(r);this.effects.push({root:r,event:e,life:.38,max:.38,kind:'ring'});
-      if(e.type==='explode')this.shake=Math.max(this.shake,.2);if(e.type==='hit'&&e.text==='house')this.shake=.08;
+    const wood=e.text==='gate',dust=e.type==='dodge',friendly=e.type==='repair'||e.type==='rescue';
+    const color=friendly?'#a3d3a0':e.type==='ping'?this.state?.crew.find(p=>p.id===e.by)?.color??'#e6bf72':e.prop==='battery'?'#8fcdd0':dust?'#b8b1a0':wood?'#b89b73':e.type==='hit'&&e.text==='crew'?'#da8a70':'#e5bb7c';
+    if(['hit','explode','kill','repair','rescue','dodge','pad'].includes(e.type)){
+      const count=e.type==='explode'?18:e.type==='hit'?6:dust?4:8,duration=e.type==='hit'?.26:dust?.24:.48,attacker=this.state?.crew.find(p=>p.id===e.by),away=attacker?Math.atan2(e.z-attacker.z,e.x-attacker.x):e.id*.73;
+      const burst=new T.InstancedMesh(wood?geometry('splinter',()=>new T.BoxGeometry(1,.35,2.8)):geometry('burst',()=>new T.IcosahedronGeometry(1,0)),mat(color),count);burst.position.set(e.x,atY+(dust?-.25:.45),e.z);burst.instanceMatrix.setUsage(T.DynamicDrawUsage);
+      burst.userData.particles=Array.from({length:count},(_,i)=>{const angle=e.type==='hit'?away+(i%3-1)*.65+i*.13:i*2.399+e.id*.73,speed=(dust?.65:1.3)+(i*1.31)%2;return{position:new T.Vector3(Math.cos(angle)*.08,Math.sin(i*3)*.06,Math.sin(angle)*.08),velocity:new T.Vector3(Math.cos(angle)*speed,dust?.25:.8+i%3*.35,Math.sin(angle)*speed),radius:e.type==='explode'?.13:dust?.07:.065};});
+      this.scene.add(burst);this.effects.push({root:burst,event:e,life:duration,max:duration,kind:'burst'});
     }
+    if(['explode','repair','rescue','pad','ping'].includes(e.type)){
+      const duration=e.type==='ping'?.85:.35,r=ring(e.type==='explode'?1.3:e.type==='ping'?1:.65,color);r.position.set(e.x,atY,e.z);this.scene.add(r);this.effects.push({root:r,event:e,life:duration,max:duration,kind:'ring'});
+    }
+    if(e.type==='explode')this.shake=Math.max(this.shake,.2);if(e.type==='hit'&&e.text==='house')this.shake=.08;
   }
   private remove(root:T.Object3D):void {
     this.scene.remove(root);root.traverse(o=>{
@@ -496,6 +499,7 @@ export class EscapeScene {
       if(fx.kind==='beam')((fx.root as T.Line).material as T.LineBasicMaterial).opacity=1-t;
     }
     this.effects=this.effects.filter(fx=>{if(fx.life<=0){this.remove(fx.root);return false;}return true;});
+    this.ash.visible=biome!=='canal';(this.ash.material as T.MeshLambertMaterial).color.set(biome==='foundry'?'#d5a782':'#b8b29e');
     for(let i=0;i<65;i++){
       const q=(clock*.3+i*.618)%1;this.dummy.position.set(Math.sin(i*34.1)*20+(q-.5)*3,1+(i*.37)%7,this.viewZ+((i*1.713+clock*.8)%50)-20);
       this.dummy.scale.setScalar(boost&&i%3===0?2:1);this.dummy.updateMatrix();this.ash.setMatrixAt(i,this.dummy.matrix);
