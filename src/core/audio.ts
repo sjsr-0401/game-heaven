@@ -1,4 +1,4 @@
-import {onDeck,type EscapeEvent,type EscapeState} from '../../shared/escape.js';
+import {VIEW_RIGHT,onDeck,type EscapeEvent,type EscapeState} from '../../shared/escape.js';
 import type { CombatEvent } from '../../shared/defense.js';
 
 let audio:AudioContext|null=null,master:GainNode|null=null,noise:AudioBuffer|null=null;
@@ -100,7 +100,7 @@ export async function finishAudioRecording():Promise<{base64:string;startedAt:nu
 let lastBeat=-1,escapeHitAt=0;
 export function playEscapeEvent(e:EscapeEvent):void {
  if(!enabled||!audio)return;
- const pan=((e.x-listener.x)*.836+(e.z-listener.z)*.548)/15,range=Math.hypot(e.x-listener.x,e.z-listener.z),gain=1/(1+range*.025),rate=.96+(e.id%5)*.02;
+ const pan=((e.x-listener.x)*VIEW_RIGHT.x+(e.z-listener.z)*VIEW_RIGHT.z)/15,range=Math.hypot(e.x-listener.x,e.z-listener.z),gain=1/(1+range*.025),rate=.96+(e.id%5)*.02;
  if(e.type==='hook'){if(!sample(e.id%2?'hook0':'hook1',.13*gain,rate,pan))impact(.1,.06,2600,'bandpass');impact(.07,.025,2100,'highpass');if(e.prop)sample('pickup',.18*gain,1.02,pan);}
  if(e.type==='throw'){sample('plank0',.1*gain,.9,pan);impact(.14,.035,1500,'bandpass');}
  if(e.type==='hit'&&performance.now()-escapeHitAt>55){
@@ -125,7 +125,7 @@ export function advanceEscapeAudio(s:EscapeState):void {
  for(const p of s.crew){
   const stride=Math.floor(p.walk/1.55),before=steps.get(p.id);steps.set(p.id,stride);
   if(before!==undefined&&before!==stride&&p.downUntil<=s.clock&&!p.left){
-   const deck=onDeck(p,s.house)||(s.biome==='canal'&&Math.abs(p.x)>9.6),pan=((p.x-listener.x)*.836+(p.z-listener.z)*.548)/15,volume=.085/(1+Math.hypot(p.x-listener.x,p.z-listener.z)*.13);
+   const deck=onDeck(p,s.house)||(s.biome==='canal'&&Math.abs(p.x)>9.6),pan=((p.x-listener.x)*VIEW_RIGHT.x+(p.z-listener.z)*VIEW_RIGHT.z)/15,volume=.085/(1+Math.hypot(p.x-listener.x,p.z-listener.z)*.13);
    sample(deck?(stride%2?'wood0':'wood1'):(stride%2?'concrete0':'concrete1'),volume,.96+(stride%3)*.04,pan);
   }
  }

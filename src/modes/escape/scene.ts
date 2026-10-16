@@ -219,7 +219,7 @@ function houseModel():HouseRig {
   return{root,cabin,wheels,engine,chimney:new T.Vector3(1.2,5.9,1.35)};
 }
 function chunkModel(index:number,biome:string):T.Group {
-  const g=new T.Group(),details=new T.Group(),rand=seeded(index*9137+133),foundry=biome==='foundry',canal=biome==='canal';
+  const g=new T.Group(),details=new T.Group(),occluders:T.Mesh[]=[],rand=seeded(index*9137+133),foundry=biome==='foundry',canal=biome==='canal';
   const ground=foundry?'#86776c':canal?'#9dafa1':'#b7ab91';
   box(g,0,-.75,0,canal?56:48,1.2,30,ground);box(g,0,-.08,0,11,.18,30,foundry?'#56535a':'#59636c');
   for(const side of [-1,1]){
@@ -246,7 +246,7 @@ function chunkModel(index:number,biome:string):T.Group {
       const x=side*((canal?20.7:17)+(block===2?1.8:0)+rand()*.7),z=-11+i*11+(side>0?1.4:0)+rand(),size=block===1?6.8:block===3?8.6:7.5;
       const pack=foundry?'industrial':'commercial',name=foundry?['building-d','building-h','building-a','building-m'][block]:['building-c','building-a','building-f','building-h'][block];
       const model=scenery(pack+'/'+name,x,z,size,side<0?Math.PI/2:-Math.PI/2,['#f1dfc6','#d4ddd2','#e5cec0','#cbd3db'][(i+Math.abs(index)+Number(side>0))%4]);
-      if(model)g.add(model);else box(g,x,1.8,z,size,3.6,size*.8,foundry?'#9b8777':'#a9aca5');
+      if(model)occluders.push(model);else box(g,x,1.8,z,size,3.6,size*.8,foundry?'#9b8777':'#a9aca5');
       // Ground shadows remain readable on integrated GPUs with dynamic shadows disabled.
       box(g,x+1.2,-.002,z+1.3,size+1,.02,size*.9,'#818c84',0,.05);
       if(i===1){
@@ -256,8 +256,8 @@ function chunkModel(index:number,biome:string):T.Group {
       }
     }
     if(foundry){
-      const tower=scenery(Math.abs(index)%2?'industrial/detail-tank':'industrial/water-tower',side*13.8,8,4.1);if(tower)g.add(tower);
-      const container=scenery('industrial/shipping-container-a',side*14,-9,4.5,side*.2);if(container)g.add(container);
+      const tower=scenery(Math.abs(index)%2?'industrial/detail-tank':'industrial/water-tower',side*13.8,8,4.1);if(tower)occluders.push(tower);
+      const container=scenery('industrial/shipping-container-a',side*14,-9,4.5,side*.2);if(container)occluders.push(container);
     }
     // Road furniture breaks up the repeating grid without obstructing the playable shoulder.
     for(const z of [-10,7]){
@@ -277,7 +277,7 @@ function chunkModel(index:number,biome:string):T.Group {
     notice.position.set(side*10.8,1.45,-4);notice.rotation.y=Math.PI-side*.12;details.add(notice);
     for(const dx of [-.75,.75])box(g,side*10.8+dx,.65,-4,.1,1.3,.1,'#46535a');
   }
-  const root=batch(g);root.add(details);return root;
+  const root=batch(g);root.add(details,...occluders);root.userData.occluders=occluders;return root;
 }
 interface Effect {root:T.Object3D;event:EscapeEvent;life:number;max:number;kind:'beam'|'burst'|'ring'}
 export class EscapeScene {
@@ -290,7 +290,6 @@ export class EscapeScene {
   private last=performance.now();private raf=0;private disposed=false;private observer:ResizeObserver;private viewZ=0;private shake=0;private elapsed=0;
   private eventListener:(e:EscapeEvent)=>void=()=>{};private nextShadow=0;private frameCount=0;private totalFrameMs=0;
   private raycaster=new T.Raycaster();private plane=new T.Plane(new T.Vector3(0,1,0),-.4);private vector=new T.Vector3();
-  private chunkFrustum=new T.Frustum();private cameraProjection=new T.Matrix4();
   private ash:T.InstancedMesh;private dummy=new T.Object3D();private width=1;private height=1;
   constructor(private container:HTMLElement,private showcase=false) {
     this.renderer=new T.WebGLRenderer({antialias:false,alpha:false,powerPreference:'high-performance'});
@@ -348,7 +347,7 @@ export class EscapeScene {
     this.raycaster.ray.intersectPlane(this.plane,this.vector);
     return{x:this.vector.x,z:this.vector.z};
   }
-  metrics():{fps:number;drawCalls:number;triangles:number;quality:GraphicsQuality;art:{loaded:number;total:number};frames:number;frameMs:number;visibleChunks:number;cachedChunks:number}{return{fps:this.frameCount?Math.round(1000/(this.totalFrameMs/this.frameCount)):0,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,quality:this.quality,art:artStatus(),frames:this.frameCount,frameMs:this.totalFrameMs,visibleChunks:[...this.chunks.values()].filter(g=>g.visible).length,cachedChunks:this.chunks.size};}
+  metrics():{fps:number;drawCalls:number;triangles:number;quality:GraphicsQuality;art:{loaded:number;total:number};frames:number;frameMs:number}{return{fps:this.frameCount?Math.round(1000/(this.totalFrameMs/this.frameCount)):0,drawCalls:this.renderer.info.render.calls,triangles:this.renderer.info.render.triangles,quality:this.quality,art:artStatus(),frames:this.frameCount,frameMs:this.totalFrameMs};}
   private resize():void{
     this.width=Math.max(1,this.container.clientWidth);this.height=Math.max(1,this.container.clientHeight);
     this.renderer.setSize(this.width,this.height,false);const aspect=this.width/this.height,half=aspect<1.2?20:14.8;
@@ -403,7 +402,7 @@ export class EscapeScene {
     }
     const wanted=new Set<string>();
     for(let i=index-1;i<=index+2;i++){
-      const key=i+biome+this.artRevision;wanted.add(key);if(!this.chunks.has(key)){const chunk=chunkModel(i,biome);chunk.position.z=i*30;this.scene.add(chunk);chunk.updateMatrixWorld(true);chunk.userData.bounds=new T.Box3().setFromObject(chunk);this.chunks.set(key,chunk);}
+      const key=i+biome+this.artRevision;wanted.add(key);if(!this.chunks.has(key)){const chunk=chunkModel(i,biome);chunk.position.z=i*30;this.scene.add(chunk);this.chunks.set(key,chunk);}
     }
     for(const[key,g]of this.chunks)if(!wanted.has(key)){this.remove(g);this.chunks.delete(key);}
     if(s){
@@ -506,8 +505,21 @@ export class EscapeScene {
     this.shake=Math.max(0,this.shake-dt*.9);const jitter=Math.sin(clock*65)*this.shake;
     const own=s?.crew.find(p=>p.id===this.ownId),focusX=own?clamp(own.x*.12,-1.5,1.5):0;
     this.camera.position.set(19+focusX+jitter,25,this.viewZ-25+jitter);this.camera.lookAt(focusX,.4,this.viewZ+4);
-    this.camera.updateMatrixWorld();this.chunkFrustum.setFromProjectionMatrix(this.cameraProjection.multiplyMatrices(this.camera.projectionMatrix,this.camera.matrixWorldInverse));
-    for(const chunk of this.chunks.values())chunk.visible=this.quality==='high'||this.chunkFrustum.intersectsBox(chunk.userData.bounds as T.Box3);
+    this.camera.updateMatrixWorld();
+    const occluders=[...this.chunks.values()].filter(chunk=>chunk.visible).flatMap(chunk=>chunk.userData.occluders as T.Mesh[]),blocked=new Set<T.Mesh>();
+    if(s&&occluders.length){
+      this.scene.updateMatrixWorld(true);
+      const subjects:T.Vector3[]=[...this.crew.values()].map(rig=>rig.root.position.clone().add(new T.Vector3(0,1.5,0)));
+      for(const monster of this.monsters.values())subjects.push(monster.position.clone().add(new T.Vector3(0,1.1,0)));
+      for(const object of this.objects.values())if(!object.userData.pad)subjects.push(object.position.clone().add(new T.Vector3(0,.5,0)));
+      for(const point of subjects){
+        const screen=point.clone().project(this.camera);if(Math.abs(screen.x)>.98||screen.y>.87||screen.y<-.85)continue;
+        this.raycaster.setFromCamera(new T.Vector2(screen.x,screen.y),this.camera);this.raycaster.far=this.raycaster.ray.origin.distanceTo(point)-.15;
+        for(const hit of this.raycaster.intersectObjects(occluders,false))blocked.add(hit.object as T.Mesh);
+      }
+      this.raycaster.far=Infinity;
+    }
+    for(const object of occluders){const paint=object.material as T.MeshLambertMaterial,target=blocked.has(object)?.18:1;paint.opacity+=(target-paint.opacity)*(1-Math.exp(-dt*(target<paint.opacity?18:6)));paint.depthWrite=paint.opacity>.98;}
     this.light.position.set(-14,30,this.viewZ-12);this.light.target.position.set(0,0,this.viewZ+3);
     this.aimRing.visible=!!own&&s?.phase==='travel';this.aimRing.position.set(this.aim.x,s&&this.hovered?.type!=='enemy'&&this.hovered?.type!=='gate'&&onDeck(this.aim,s.house)?1.69:.09,this.aim.z);(this.aimRing.material as T.MeshBasicMaterial).color.set(this.hovered?.color??'#fff0b2');
     this.trajectory.visible=!!own?.carry&&s?.phase==='travel';if(this.trajectory.visible&&own){

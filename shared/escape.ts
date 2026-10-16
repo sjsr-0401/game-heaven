@@ -1,4 +1,8 @@
 export const WORLD_HALF_WIDTH=12;
+// Fixed camera offset (19, 25, -25), looking toward z + 4.
+const viewLength=Math.hypot(19,29);
+export const VIEW_RIGHT={x:-29/viewLength,z:-19/viewLength};
+export const VIEW_FORWARD={x:VIEW_RIGHT.z,z:-VIEW_RIGHT.x};
 export const ESCAPE_ID = 'houseflight';
 export const ESCAPE_VERSION = '1.0.0';
 export const STAGE_ENDS = [44, 88, 140] as const;

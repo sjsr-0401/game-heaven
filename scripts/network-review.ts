@@ -35,7 +35,7 @@ try{
  await friend.locator('#join-code').fill(code);await friend.locator('#join-room').click();await friend.locator('#ready-start').click();await main.waitForFunction(()=>document.querySelector<HTMLButtonElement>('#ready-start')?.disabled===false);await main.locator('#ready-start').click();
  await main.waitForFunction(()=>window.__review!.snapshot().room?.phase==='playing');await friend.waitForFunction(()=>window.__review!.snapshot().room?.phase==='playing');await main.waitForTimeout(1400);
  const before=(await state(main)).room!.game as EscapeState;
- await main.keyboard.down('a');await friend.keyboard.down('d');await main.waitForTimeout(1700);await main.keyboard.up('a');await friend.keyboard.up('d');await main.waitForTimeout(650);
+ await main.keyboard.down('d');await friend.keyboard.down('a');await main.waitForTimeout(1700);await main.keyboard.up('d');await friend.keyboard.up('a');await main.waitForTimeout(650);
  const moved=(await state(main)).room!.game as EscapeState;
  check('delayed WebSocket traffic moves both players',moved.crew.every(p=>Math.hypot(p.x-before.crew.find(c=>c.id===p.id)!.x,p.z-before.crew.find(c=>c.id===p.id)!.z)>4));
  const stopped=moved.crew.map(p=>({id:p.id,x:p.x,z:p.z}));await main.waitForTimeout(800);const still=(await state(main)).room!.game as EscapeState;

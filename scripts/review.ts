@@ -3,7 +3,7 @@ import {mkdir,writeFile,copyFile,open} from 'node:fs/promises';
 import {execFileSync,spawnSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {decide} from './crew-agent.js';
-import {onDeck,type EscapeState} from '../shared/escape.js';
+import {VIEW_RIGHT,VIEW_FORWARD,onDeck,type EscapeState} from '../shared/escape.js';
 import type {RoomSnapshot} from '../shared/protocol.js';
 const base=process.env.REVIEW_BASE_URL??'http://127.0.0.1:3000',slice=process.env.REVIEW_SLICE_ONLY==='1',nativeCapture=process.env.REVIEW_CAPTURE==='native';
 const ffmpeg=process.env.FFMPEG_PATH??'ffmpeg',checks:{name:string;passed:boolean}[]=[],chapters:{title:string;description:string;seconds:number}[]=[];
@@ -41,7 +41,7 @@ async function release(page:Page):Promise<void>{for(const key of keys.get(page)?
 async function agent(page:Page,index:number):Promise<void>{
   const data=await snapshot(page);if(!data.room?.game)return;const s=data.room.game as EscapeState,p=s.crew.find(p=>p.id===data.playerId);if(!p)return;
   const d=decide(s,p.id,index);
-  const dx=d.move.x*.836+d.move.z*.548,up=-d.move.x*.548+d.move.z*.836;
+  const dx=d.move.x*VIEW_RIGHT.x+d.move.z*VIEW_RIGHT.z,up=d.move.x*VIEW_FORWARD.x+d.move.z*VIEW_FORWARD.z;
   const desired=new Set<string>();if(dx>.3)desired.add('d');if(dx<-.3)desired.add('a');if(up>.3)desired.add('w');if(up<-.3)desired.add('s');
   const held=keys.get(page)??new Set<string>();
   for(const key of held)if(!desired.has(key))await page.keyboard.up(key);
@@ -80,10 +80,15 @@ try{
   await main.waitForTimeout(3000);
   const aimAfterState=(await snapshot(main)).room!.game as EscapeState,aimAfter=aimAfterState.crew.find(p=>p.id===aimBefore.id)!;
   check('집이 움직여도 고정된 마우스 위치로 계속 조준',aimAfterState.house.z-aimStart.house.z>.9&&aimBefore.aimX*aimAfter.aimX+aimBefore.aimZ*aimAfter.aimZ>.997);
+  const relativeScreen=async(page:Page)=>await page.evaluate(()=>{const {room,playerId}=window.__review!.snapshot(),s=room!.game as EscapeState,p=s.crew.find(c=>c.id===playerId)!,actor=window.__review!.project(p.x,p.z,1)!,house=window.__review!.project(s.house.x,s.house.z,1)!;return{x:actor.x-house.x,y:actor.y-house.y};});
+  const upBefore=await relativeScreen(main);await main.keyboard.down('w');keys.set(main,new Set(['w']));await main.waitForTimeout(1000);await release(main);await main.waitForTimeout(180);const upAfter=await relativeScreen(main);
+  check('W 입력이 실제 화면 위쪽으로 이동',upAfter.y<upBefore.y-25);
+  const rightBefore=await Promise.all([main,friend].map(relativeScreen));
   const movementBefore=(await snapshot(main)).room!.game as EscapeState;
-  await main.keyboard.down('a');keys.set(main,new Set(['a']));await friend.keyboard.down('d');keys.set(friend,new Set(['d']));
+  await main.keyboard.down('d');keys.set(main,new Set(['d']));await friend.keyboard.down('a');keys.set(friend,new Set(['a']));
   await main.waitForTimeout(2200);const movementAfter=(await snapshot(main)).room!.game as EscapeState;
   await release(main);await release(friend);
+  const rightAfter=await Promise.all([main,friend].map(relativeScreen));check('D와 A 입력이 실제 화면의 오른쪽·왼쪽과 일치',rightAfter[0].x>rightBefore[0].x+45&&rightAfter[1].x<rightBefore[1].x-45);
   check('두 창의 이동 입력이 동시에 유지됨',movementAfter.crew.every(p=>{const before=movementBefore.crew.find(c=>c.id===p.id)!;return Math.hypot(p.x-before.x,p.z-before.z)>4;}));
 
 
