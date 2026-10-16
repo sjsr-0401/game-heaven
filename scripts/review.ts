@@ -129,8 +129,8 @@ try{
   const extra=await newPage('다섯 번째');await extra.locator('#join-code').fill(fourCode);await extra.locator('#join-room').click();await extra.waitForTimeout(500);check('다섯 번째 참가자 차단',(await snapshot(extra)).room===null);await extra.context().close();
   for(const page of [friend,third,fourth])await page.locator('#ready-start').click();
   await main.waitForFunction(()=>document.querySelector<HTMLButtonElement>('#ready-start')?.disabled===false);
+  await main.locator('#ready-start').click();await main.locator('.world canvas').waitFor();await main.waitForTimeout(800);
   await section('4인 플레이','네 명이 한 집을 지키며 물건 회수·투척·수리를 나눕니다.',30);
-  await main.locator('#ready-start').click();await main.locator('.world canvas').waitFor();
   check('네 전장의 크기와 HUD 배치 정상',(await Promise.all([main,friend,third,fourth].map(playfieldFits))).every(Boolean));
   const fourStart=Date.now();while(Date.now()-fourStart<32000){await Promise.all([main,friend,third,fourth].map((p,i)=>agent(p,i)));await main.waitForTimeout(140);}
   await Promise.all([main,friend,third,fourth].map(release));await main.screenshot({path:'artifacts/four-player.png'});
@@ -167,11 +167,13 @@ try{
   if(firstThrowAt>0)execFileSync(ffmpeg,['-y','-ss',String(Math.max(0,firstThrowAt-.65)),'-i',full,'-vf','fps=6,crop=900:600:190:150,scale=450:300,tile=4x2','-frames:v','1','artifacts/action-strip.jpg'],{stdio:'pipe',timeout:60000});
   const sorted=segments.map(s=>({...s,start:Math.max(0,s.start),end:Math.min(s.end,fullDuration-.5)})).filter(s=>s.end>s.start).sort((a,b)=>a.start-b.start);
   const merged:typeof sorted=[];for(const segment of sorted){const previous=merged.at(-1);if(previous&&segment.start<previous.end){previous.end=Math.max(previous.end,segment.end);}else merged.push({...segment});}
-  let outTime=0;const filters:string[]=[];merged.forEach((segment,i)=>{
-    chapters.push({title:segment.title,description:segment.description,seconds:outTime});outTime+=segment.end-segment.start;
+  let outTime=0;const offsets:number[]=[],filters:string[]=[];merged.forEach((segment,i)=>{
+    offsets.push(outTime);outTime+=segment.end-segment.start;
     filters.push('[0:v]trim=start='+segment.start+':end='+segment.end+',setpts=PTS-STARTPTS[v'+i+']');
     if(audio)filters.push('[0:a]atrim=start='+segment.start+':end='+segment.end+',asetpts=PTS-STARTPTS[a'+i+']');
   });
+  for(const section of sorted){const clip=merged.findIndex(segment=>section.start>=segment.start&&section.start<segment.end);assert.ok(clip>=0,'Every section must belong to an exported clip');chapters.push({title:section.title,description:section.description,seconds:offsets[clip]+section.start-merged[clip].start});}
+  check('겹치는 영상 구간에서도 4인 플레이 챕터를 유지',chapters.some(c=>c.title==='4인 플레이'));
   filters.push(merged.map((_,i)=>'[v'+i+']'+(audio?'[a'+i+']':'')).join('')+'concat=n='+merged.length+':v=1:a='+(audio?1:0)+'[v]'+(audio?'[a]':''));
   execFileSync(ffmpeg,['-y','-i',full,'-filter_complex',filters.join(';'),'-map','[v]',...(audio?['-map','[a]']:[]),'-c:v','libx264','-preset','fast','-crf','23','-pix_fmt','yuv420p',...(audio?['-c:a','aac','-b:a','96k']:[]),'-movflags','+faststart',target],{stdio:'pipe',timeout:300000});
   execFileSync(ffmpeg,['-v','error','-i',target,'-f','null','-'],{stdio:'pipe',timeout:180000});check('최종 영상 전체 디코딩',true);
@@ -179,7 +181,7 @@ try{
   let audioPeakDb:number|null=null;
   if(audio){execFileSync(ffmpeg,['-v','error','-i',target,'-map','0:a:0','-f','null','-'],{stdio:'pipe',timeout:60000});check('실제 게임 음성 트랙 디코딩',true);const volume=spawnSync(ffmpeg,['-hide_banner','-i',target,'-vn','-af','volumedetect','-f','null','-'],{encoding:'utf8',timeout:60000});audioPeakDb=Number(volume.stderr.match(/max_volume: (-?\d+(?:\.\d+)?)/)?.[1]);check('녹음된 실제 소리가 무음이 아님',volume.status===0&&Number.isFinite(audioPeakDb)&&audioPeakDb> -50);}
   execFileSync(ffmpeg,['-y','-i',target,'-vf','fps=1/20,scale=480:-1,tile=3x3','-frames:v','1','artifacts/combat-sheet.jpg'],{stdio:'pipe',timeout:60000});
-  const metadata={title:'집째로 도망',version:'1.0.0',sourceCommit,repository:'sjsr-0401/game-heaven',fullRun:final.phase==='finished',realGameAudio:!!audio,audioPeakDb,sourceDurationSeconds:fullDuration,video:movie,captureMethod:nativeCapture?'Chromium native screen recording':'Playwright video',recordingWallSeconds,checks,chapters,segments:merged,metrics,twoPlayerMetrics,summary:{phase:finalGame.phase,seconds:finalGame.clock,distance:finalGame.distance,bossDefeated:finalGame.bossDefeated,players:finalGame.crew.length,contributions:finalGame.crew.map(p=>({name:p.name,...p.stats}))},limitations:['클라우드 브라우저의 실제 키보드·마우스 조작입니다. 사람의 재미 평가와 실제 가정용 인터넷 지연 검증은 별도입니다.','하이라이트는 실제 속도이며 구간 사이를 편집했습니다. 원본 전체 영상도 같은 클라우드 산출물에 포함합니다.']};
+  const metadata={title:'집째로 도망',version:'1.0.0',sourceCommit,repository:'sjsr-0401/game-heaven',fullRun:final.phase==='finished',realGameAudio:!!audio,audioPeakDb,sourceDurationSeconds:fullDuration,video:movie,captureMethod:nativeCapture?'Chromium native screen recording':'Playwright video',recordingWallSeconds,checks,chapters,sections:sorted,segments:merged,metrics,twoPlayerMetrics,summary:{phase:finalGame.phase,seconds:finalGame.clock,distance:finalGame.distance,bossDefeated:finalGame.bossDefeated,players:finalGame.crew.length,contributions:finalGame.crew.map(p=>({name:p.name,...p.stats}))},limitations:['클라우드 브라우저의 실제 키보드·마우스 조작입니다. 사람의 재미 평가와 실제 가정용 인터넷 지연 검증은 별도입니다.','하이라이트는 실제 속도이며 구간 사이를 편집했습니다. 원본 전체 영상도 같은 클라우드 산출물에 포함합니다.']};
   await writeFile('artifacts/verification.json',JSON.stringify(metadata,null,2));console.log('FINAL_REVIEW '+JSON.stringify(metadata));
 }catch(error){
   for(let i=0;i<Math.min(pages.length,4);i++)try{await pages[i].screenshot({path:'artifacts/failure-'+i+'.png'});}catch{}

@@ -54,7 +54,7 @@ try {
   const current = await video.evaluate(video => video.currentTime);
   assert.ok(current > 0, 'Standalone HTML must play the embedded MP4 without a server');
   await video.evaluate(video => video.pause());
-  await page.locator('.chapter').last().click();
+  const fourChapter=page.locator('.chapter').filter({hasText:'4인 플레이'});assert.equal(await fourChapter.count(),1,'Four-player play must remain directly seekable even when video clips overlap');await fourChapter.click();
   await page.waitForTimeout(300);
   assert.ok(await video.evaluate(video => video.currentTime > 5), 'Chapter buttons should seek');
   await page.screenshot({ path: 'artifacts/review-page.png', fullPage: true });
