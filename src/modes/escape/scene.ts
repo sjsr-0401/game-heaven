@@ -263,7 +263,7 @@ export class EscapeScene {
   world(clientX:number,clientY:number):Vec {
     const rect=this.canvas.getBoundingClientRect(),point=new T.Vector2((clientX-rect.left)/rect.width*2-1,-(clientY-rect.top)/rect.height*2+1);
     this.raycaster.setFromCamera(point,this.camera);
-    const candidates=[...this.objects.values(),...this.monsters.values(),...[...this.crew.entries()].filter(([id])=>id!==this.ownId).map(([,rig])=>rig.root)];
+    const candidates=[...(this.gate.visible?[this.gate]:[]),...this.objects.values(),...this.monsters.values(),...[...this.crew.entries()].filter(([id])=>id!==this.ownId).map(([,rig])=>rig.root)];
     const hits=this.raycaster.intersectObjects(candidates,true);if(hits.length){let root:T.Object3D|null=hits[0].object;while(root){if(root.userData.pick)return{...root.userData.pick};root=root.parent;}}
     this.raycaster.ray.intersectPlane(this.plane,this.vector);
     return{x:this.vector.x,z:this.vector.z};
@@ -320,7 +320,7 @@ export class EscapeScene {
     }
     for(const[key,g]of this.chunks)if(!wanted.has(key)){this.remove(g);this.chunks.delete(key);}
     if(s){
-      this.gate.visible=!s.gate.open&&s.stage<3;this.gate.position.z=s.gate.z;
+      this.gate.visible=!s.gate.open&&s.stage<3;this.gate.position.z=s.gate.z;this.gate.userData.pick={x:0,z:s.gate.z};
       const alive=new Set(s.crew.filter(p=>!p.left).map(p=>p.id));
       for(const p of s.crew.filter(p=>!p.left)){
         let rig=this.crew.get(p.id);if(!rig){rig=worker(p.color,s.crew.indexOf(p));this.crew.set(p.id,rig);rig.root.position.set(p.x,0,p.z);this.scene.add(rig.root);}

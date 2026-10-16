@@ -30,6 +30,7 @@ try {
   const errors = []; page.on('pageerror', error => errors.push(error.message));
   await page.goto(pathToFileURL(output).href);
   const video = page.locator('video');
+  assert.ok((await page.locator('#download-video').getAttribute('href'))?.startsWith('data:video/mp4;base64,'), 'Download must use the embedded video');
   await video.evaluate(video => new Promise((resolve, reject) => {
     if (video.readyState >= 1) { resolve(true); return; }
     video.addEventListener('loadedmetadata', () => resolve(true), { once: true });

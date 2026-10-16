@@ -7,7 +7,7 @@ const escape=(v:unknown)=>String(v).replaceAll('&','&amp;').replaceAll('<','&lt;
 export class EscapeView implements ClientMode {
   readonly scene:EscapeScene;
   private state:EscapeState|null=null;private room:RoomSnapshot|null=null;private keys=new Set<string>();private mouse={x:0,z:8};
-  private pressed=false;private nextHook=0;private raf=0;private lastInput=0;private lastHud=0;private lastPhase='';private campKey='';private abort=new AbortController();
+  private pointer:{x:number;y:number}|null=null;private pressed=false;private nextHook=0;private raf=0;private lastInput=0;private lastHud=0;private lastPhase='';private campKey='';private abort=new AbortController();
   private labels:HTMLDivElement;private floats:HTMLDivElement;private heldLabel:HTMLElement;
   constructor(private context:ModeContext){
     context.element.innerHTML='<div class="playfield"><div class="world"></div><div class="world-vignette"></div><div class="world-labels"></div><div class="float-layer"></div>'
@@ -36,13 +36,11 @@ export class EscapeView implements ClientMode {
     },opts);
     window.addEventListener('keyup',e=>this.keys.delete(e.key.toLowerCase()),opts);
     window.addEventListener('blur',()=>{this.keys.clear();this.pressed=false;this.sendMotion();},opts);
-    this.scene.canvas.addEventListener('pointermove',e=>{
-      this.mouse=this.scene.world(e.clientX,e.clientY);this.scene.setAim(this.mouse);
-      const reticle=root.querySelector<HTMLElement>('.aim-reticle')!,rect=this.scene.canvas.getBoundingClientRect();
-      reticle.hidden=false;reticle.style.left=(e.clientX-rect.left)+'px';reticle.style.top=(e.clientY-rect.top)+'px';
-    },opts);
+    const point=(e:PointerEvent)=>{this.pointer={x:e.clientX,y:e.clientY};this.updateAim();};
+    this.scene.canvas.addEventListener('pointermove',point,opts);
+    this.scene.canvas.addEventListener('pointerleave',()=>{this.pointer=null;this.pressed=false;root.querySelector<HTMLElement>('.aim-reticle')!.hidden=true;},opts);
     this.scene.canvas.addEventListener('pointerdown',e=>{
-      this.scene.canvas.focus();if(e.button===0){this.pressed=true;this.hook();}if(e.button===2)context.command({kind:'throw',...this.mouse});e.preventDefault();
+      point(e);this.scene.canvas.focus();if(e.button===0){this.pressed=true;this.hook();}if(e.button===2)context.command({kind:'throw',...this.mouse});e.preventDefault();
     },opts);
     window.addEventListener('pointerup',()=>{this.pressed=false;},opts);
     this.scene.canvas.addEventListener('contextmenu',e=>e.preventDefault(),opts);
@@ -58,7 +56,13 @@ export class EscapeView implements ClientMode {
     },opts);
     this.loop();
   }
-  private hook():void {if(!this.state||this.state.phase!=='travel'){this.pressed=false;return;}this.context.command({kind:'hook',...this.mouse});this.nextHook=performance.now()+520;}
+  private updateAim():void {
+    if(!this.pointer)return;
+    this.mouse=this.scene.world(this.pointer.x,this.pointer.y);this.scene.setAim(this.mouse);
+    const reticle=this.context.element.querySelector<HTMLElement>('.aim-reticle')!,rect=this.scene.canvas.getBoundingClientRect();
+    reticle.hidden=false;reticle.style.left=(this.pointer.x-rect.left)+'px';reticle.style.top=(this.pointer.y-rect.top)+'px';
+  }
+  private hook():void {if(!this.state||this.state.phase!=='travel'){this.pressed=false;return;}this.updateAim();this.context.command({kind:'hook',...this.mouse});this.nextHook=performance.now()+520;}
   private motion():{x:number;z:number} {
     if(document.querySelector('dialog[open]')||!this.state||this.state.phase==='won'||this.state.phase==='lost')return{x:0,z:0};
     const horizontal=Number(this.keys.has('d')||this.keys.has('arrowright'))-Number(this.keys.has('a')||this.keys.has('arrowleft'));
@@ -68,7 +72,7 @@ export class EscapeView implements ClientMode {
   }
   private sendMotion():void {
     const p=this.state?.crew.find(p=>p.id===this.context.playerId);if(!p||!this.state||this.state.phase==='won'||this.state.phase==='lost')return;
-    const m=this.motion();this.scene.setInput(m.x,m.z);
+    this.updateAim();const m=this.motion();this.scene.setInput(m.x,m.z);
     this.context.command({kind:'input',...m,aimX:this.mouse.x-p.x,aimZ:this.mouse.z-p.z});
   }
   private loop=():void=>{
@@ -109,7 +113,7 @@ export class EscapeView implements ClientMode {
       const vote=s.votes[p.id],remaining=Math.ceil(s.campUntil-s.clock);
       const campKey=JSON.stringify([s.resources,s.upgrades,s.votes]);if(this.campKey!==campKey){this.campKey=campKey;camp.innerHTML='<div class="camp-card"><span class="small-label">A LITTLE BREATH / 정비 시간 '+remaining+'초</span><h2>다음 길은, 우리가 고르자.</h2><p>개조는 모두에게 적용돼요. 공용 부품 <b>'+s.resources+'</b>개</p><div class="upgrade-grid">'
         +(Object.keys(UPGRADE_INFO) as UpgradeId[]).map(k=>{const u=UPGRADE_INFO[k],level=s.upgrades[k],cost=upgradeCost(level);return'<button data-upgrade="'+k+'" '+(level>=2||s.resources<cost?'disabled':'')+'><i>'+u.icon+'</i><span><b>'+u.name+' <small>'+level+'/2</small></b><small>'+u.description+'</small></span><em>'+(level>=2?'완료':'⚙ '+cost)+'</em></button>';}).join('')
-        +'</div><div class="route-choices"><button data-route="canal" class="'+(vote==='canal'?'chosen':'')+'"><b>물안개 운하</b><small>넓은 길 · 빠른 적 · 차가운 물안개</small><span>'+Object.values(s.votes).filter(v=>v==='canal').length+'표</span></button><button data-route="foundry" class="'+(vote==='foundry'?'chosen':'')+'"><b>붉은 제련소</b><small>뜨거운 거리 · 무거운 적 · 붉은 석양</small><span>'+Object.values(s.votes).filter(v=>v==='foundry').length+'표</span></button></div><footer>다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발</footer></div>';}camp.querySelector('.small-label')!.textContent='A LITTLE BREATH / 정비 시간 '+remaining+'초';camp.querySelector('footer')!.textContent='다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발';
+        +'</div><div class="route-choices"><button data-route="canal" class="'+(vote==='canal'?'chosen':'')+'"><b>물안개 운하</b><small>운하 거리 · 빠른 적 · 차가운 물안개</small><span>'+Object.values(s.votes).filter(v=>v==='canal').length+'표</span></button><button data-route="foundry" class="'+(vote==='foundry'?'chosen':'')+'"><b>붉은 제련소</b><small>뜨거운 거리 · 무거운 적 · 붉은 석양</small><span>'+Object.values(s.votes).filter(v=>v==='foundry').length+'표</span></button></div><footer>다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발</footer></div>';}camp.querySelector('.small-label')!.textContent='A LITTLE BREATH / 정비 시간 '+remaining+'초';camp.querySelector('footer')!.textContent='다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발';
     }
     const ended=s.phase==='won'||s.phase==='lost',results=root.querySelector<HTMLElement>('.results-overlay')!;results.hidden=!ended;
     if(ended&&this.lastPhase!==s.phase){

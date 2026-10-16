@@ -3,7 +3,7 @@ import {mkdir,writeFile,copyFile} from 'node:fs/promises';
 import {execFileSync} from 'node:child_process';
 import assert from 'node:assert/strict';
 import {decide} from './crew-agent.js';
-import type {EscapeState} from '../shared/escape.js';
+import {onDeck,type EscapeState} from '../shared/escape.js';
 import type {RoomSnapshot} from '../shared/protocol.js';
 const base=process.env.REVIEW_BASE_URL??'http://127.0.0.1:3000',slice=process.env.REVIEW_SLICE_ONLY==='1';
 const ffmpeg=process.env.FFMPEG_PATH??'ffmpeg',checks:{name:string;passed:boolean}[]=[],chapters:{title:string;description:string;seconds:number}[]=[];
@@ -20,6 +20,8 @@ async function snapshot(page:Page):Promise<{room:RoomSnapshot|null;playerId:stri
 async function newPage(name:string,record=false):Promise<Page>{
   const context=await browser.newContext({viewport:record?{width:1440,height:900}:{width:960,height:700},deviceScaleFactor:record?1:.65,...(record?{recordVideo:{dir:'artifacts/raw',size:{width:1440,height:900}}}:{})});
   contexts.push(context);const page=await context.newPage();pages.push(page);keys.set(page,new Set());
+  // Every crew member represents a separate computer, not competing tabs on one desktop.
+  const focus=await context.newCDPSession(page);await focus.send('Emulation.setFocusEmulationEnabled',{enabled:true});
   page.on('pageerror',e=>errors.push(e.message));page.on('console',message=>{if(message.type()==='error'&&!message.text().includes('favicon'))errors.push(message.text());});
   if(record)videoStart=Date.now();
   await page.goto(base+'/?review=1'+(record?'&record=1':'&graphics=economy&review-helper=1'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
@@ -43,7 +45,9 @@ async function agent(page:Page,index:number):Promise<void>{
   }
   if(!d.action||Date.now()<(lastActions.get(p.id+d.action)??0))return;
   if(d.action==='hook'||d.action==='throw'){
-    const point=await page.evaluate(v=>window.__review!.project(v.x,v.z),d.aim),size=page.viewportSize()!;
+    const targetId=(d.aim as {id?:string}).id,enemy=s.enemies.find(e=>e.id===targetId),crew=s.crew.find(c=>c.id===targetId),prop=s.props.find(o=>o.id===targetId);
+    const y=enemy?(enemy.kind==='devourer'?1.6:1):crew?(onDeck(crew,s.house)?1.61:0)+(crew.downUntil>s.clock?.45:1):prop?(onDeck(prop,s.house)?1.61:0)+.5:1.3;
+    const point=await page.evaluate(v=>window.__review!.project(v.x,v.z,v.y),{...d.aim,y}),size=page.viewportSize()!;
     if(point?.visible&&point.y>70&&point.y<size.height-105&&point.x>8&&point.x<size.width-8){await page.mouse.move(point.x,point.y);await page.mouse.click(point.x,point.y,{button:d.action==='throw'?'right':'left'});}
   }else await page.keyboard.press(d.action==='dodge'?'Space':d.action==='install'?'e':'q');
   lastActions.set(p.id+d.action,Date.now()+(d.action==='hook'?550:d.action==='dodge'?1450:480));
@@ -59,11 +63,26 @@ try{
   await section('한 집, 두 명의 도주 팀','실제 두 브라우저가 같은 서버의 방에 합류하고 출발합니다.',22);
   await main.locator('#ready-start').click();await main.locator('.world canvas').waitFor();await main.waitForTimeout(1000);
   check('실제 2인 원정 시작',(await snapshot(main)).room!.phase==='playing');
-  const start=Date.now();let twoPlayerMetrics:{fps:number;drawCalls:number;triangles:number}|null=null;let sawCarry=false,sawThrow=false,sawGate=false,sawCamp=false,sawSecond=false,sawBoss=false,reloaded=false,savedPoster=false;
+  const aimStart=(await snapshot(main)).room!.game as EscapeState;
+  const fixedCursor=await main.evaluate(v=>window.__review!.project(-14,v-.5,.4),aimStart.house.z);
+  assert.ok(fixedCursor?.visible);await main.mouse.move(fixedCursor.x,fixedCursor.y);await main.waitForTimeout(450);
+  const aimBefore=((await snapshot(main)).room!.game as EscapeState).crew.find(p=>p.id===(aimStart.crew[0].id))!;
+  await main.waitForTimeout(3000);
+  const aimAfterState=(await snapshot(main)).room!.game as EscapeState,aimAfter=aimAfterState.crew.find(p=>p.id===aimBefore.id)!;
+  check('집이 움직여도 고정된 마우스 위치로 계속 조준',aimAfterState.house.z-aimStart.house.z>.9&&aimBefore.aimX*aimAfter.aimX+aimBefore.aimZ*aimAfter.aimZ>.997);
+  const movementBefore=(await snapshot(main)).room!.game as EscapeState;
+  await main.keyboard.down('a');keys.set(main,new Set(['a']));await friend.keyboard.down('d');keys.set(friend,new Set(['d']));
+  await main.waitForTimeout(2200);const movementAfter=(await snapshot(main)).room!.game as EscapeState;
+  await release(main);await release(friend);
+  check('두 창의 이동 입력이 동시에 유지됨',movementAfter.crew.every(p=>{const before=movementBefore.crew.find(c=>c.id===p.id)!;return Math.hypot(p.x-before.x,p.z-before.z)>4;}));
+
+
+  const start=Date.now();let twoPlayerMetrics:{fps:number;drawCalls:number;triangles:number}|null=null;let loggedAt=0;let sawCarry=false,sawThrow=false,sawGate=false,sawCamp=false,sawSecond=false,sawBoss=false,reloaded=false,savedPoster=false;
   const maxSeconds=slice?85:650;
   while((Date.now()-start)/1000<maxSeconds){
     await Promise.all([agent(main,0),agent(friend,1)]);
-    const state=(await snapshot(main)).room!,s=state.game as EscapeState,p=s.crew[0];
+    const state=(await snapshot(main)).room!,s=state.game as EscapeState;
+    if(s.clock-loggedAt>20){loggedAt=s.clock;console.log('PLAY_PROGRESS '+JSON.stringify({clock:Math.round(s.clock),stage:s.stage,phase:s.phase,distance:Math.round(s.house.z),hull:Math.round(s.house.hp),crew:s.crew.map(p=>({name:p.name,...p.stats})),metrics:await main.evaluate(()=>window.__review!.metrics())}));}
     if(!savedPoster&&s.clock>12){savedPoster=true;await main.screenshot({path:'artifacts/poster.png'});await main.screenshot({path:'artifacts/combat.png'});}
     if(!sawCarry&&s.crew.some(p=>p.carry)){sawCarry=true;await section('끌어오고, 던지고','갈고리로 회수한 물체를 실제 투사체로 던집니다. 피해는 서버에서 판정합니다.',22);}
     if(!sawThrow&&s.crew.some(p=>p.stats.throws>0)){sawThrow=true;check('실제 물체 회수와 투척',true);}
@@ -128,6 +147,6 @@ try{
   await writeFile('artifacts/verification.json',JSON.stringify(metadata,null,2));console.log('FINAL_REVIEW '+JSON.stringify(metadata));
 }catch(error){
   for(let i=0;i<Math.min(pages.length,4);i++)try{await pages[i].screenshot({path:'artifacts/failure-'+i+'.png'});}catch{}
-  await writeFile('artifacts/failure-details.json',JSON.stringify({error:String(error),stack:error instanceof Error?error.stack:'',errors,checks,dom:await Promise.all(pages.slice(0,4).map(async p=>{try{return await p.evaluate(()=>({url:location.href,canvases:[...document.querySelectorAll('canvas')].map(c=>({rect:c.getBoundingClientRect().toJSON(),parent:c.parentElement?.className,display:getComputedStyle(c).display,visibility:getComputedStyle(c).visibility})),body:document.body.className}));}catch{return null;}})),snapshots:await Promise.all(pages.slice(0,4).map(async p=>{try{return await snapshot(p);}catch{return null;}}))},null,2));
+  await writeFile('artifacts/failure-details.json',JSON.stringify({error:String(error),stack:error instanceof Error?error.stack:'',errors,checks,metrics:await Promise.all(pages.slice(0,4).map(async p=>{try{return await p.evaluate(()=>window.__review?.metrics());}catch{return null;}})),dom:await Promise.all(pages.slice(0,4).map(async p=>{try{return await p.evaluate(()=>({url:location.href,canvases:[...document.querySelectorAll('canvas')].map(c=>({rect:c.getBoundingClientRect().toJSON(),parent:c.parentElement?.className,display:getComputedStyle(c).display,visibility:getComputedStyle(c).visibility})),body:document.body.className}));}catch{return null;}})),snapshots:await Promise.all(pages.slice(0,4).map(async p=>{try{return await snapshot(p);}catch{return null;}}))},null,2));
   await browser.close();throw error;
 }
