@@ -1,5 +1,5 @@
 import './style.css';
-import { setSoundEnabled, playUiSound } from './core/audio.js';
+import { setSoundEnabled, playUiSound, finishAudioRecording } from './core/audio.js';
 import { DEFENSE_ID, FAMILIES, FAMILIES_INFO, RARITIES } from '../shared/defense.js';
 import type { ModeInfo, RoomSnapshot, ServerMessage } from '../shared/protocol.js';
 import { Transport } from './core/transport.js';
@@ -160,10 +160,11 @@ dialog.addEventListener('click', event => { if (event.target === dialog) { const
 showEntry();
 window.addEventListener('beforeunload', () => { net.destroy(); });
 
-// Read-only inspection and captions for reproducible recordings, enabled only with ?record=1.
+// Inspection, captions and output-audio capture for recordings; no simulation mutation API.
 if (new URLSearchParams(location.search).get('record') === '1') {
   Object.assign(window, { __review: {
     snapshot: () => structuredClone({ room, playerId }),
+    audio: finishAudioRecording,
     caption: (number: string, title: string, text: string) => {
       const box = document.querySelector<HTMLElement>('.demo-caption')!; box.hidden = !title;
       box.querySelector('.caption-number')!.textContent = number; box.querySelector('b')!.textContent = title; box.querySelector('p')!.textContent = text;

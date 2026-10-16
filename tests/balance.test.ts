@@ -46,3 +46,18 @@ test('multiple real recruitment seeds finish full runs with valid economies, cho
   }
   console.log('BALANCE_SAMPLE '+JSON.stringify({runs:results.length,wins:results.filter(r=>r.status==='victory').length,results}));
 });
+
+test('recruitment-only runs provide a baseline for the growth-and-positioning strategy',()=>{
+  const results:{seed:number;status:string;wave:number;seconds:number}[]=[];
+  for(let seed=1;seed<=8;seed++){
+    const game=new StarwoodSession(players,seed*7919);
+    for(let step=0;step<30*300&&!game.finished();step++){
+      const p=game.state.players[0];
+      if(step%30===0&&game.state.defenders.length<16&&p.gold>=40)game.command('bot',{kind:'summon'});
+      game.tick(1/30);
+    }
+    assert.equal(game.finished(),true);
+    results.push({seed,status:game.state.players[0].status,wave:game.state.wave,seconds:+game.state.time.toFixed(1)});
+  }
+  console.log('BASELINE_SAMPLE '+JSON.stringify({runs:8,wins:results.filter(r=>r.status==='victory').length,results}));
+});

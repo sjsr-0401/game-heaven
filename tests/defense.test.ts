@@ -54,7 +54,7 @@ test('army cap and dismiss refund leave room for a new summon without profitable
   assert.equal(s.state.players[0].gold,gold+10);assert.equal(s.command('a',{kind:'summon'}).ok,true);
 });
 test('kills, rewards and damage remain on the attacking player board',()=>{
-  const s=make();battle(s);s.state.defenders=s.state.defenders.filter(d=>d.ownerId==='a');
+  const s=make();battle(s);s.state.defenders=s.state.defenders.filter(d=>d.ownerId==='a');s.state.defenders.forEach(d=>{d.cooldown=0;});
   s.state.enemies=[enemy(100,'a'),enemy(101,'b',300)];
   const goldB=s.state.players[1].gold;s.tick(.1);
   assert.equal(s.state.players[0].kills,1);assert.equal(s.state.players[1].kills,0);
@@ -138,7 +138,7 @@ test('discounted wagers and boss contract rewards are consumed only on valid sum
 });
 test('target priority selects a strong or weak enemy and validates ownership',()=>{
   const s=make();battle(s);s.state.defenders=[s.state.defenders[0]];
-  const unit=s.state.defenders[0];
+  const unit=s.state.defenders[0];unit.cooldown=0;
   s.state.enemies=[{...enemy(100,'a',100),progress:400},enemy(101,'a',1000)];
   assert.equal(s.command('a',{kind:'priority',defenderId:unit.id,priority:'strong'}).ok,true);
   s.tick(.1);assert.equal(s.state.events.find(e=>e.type==='shot')!.targetId,101);
@@ -149,7 +149,7 @@ test('target priority selects a strong or weak enemy and validates ownership',()
   assert.equal(s.command('a',{kind:'priority',defenderId:unit.id,priority:'__proto__'}).ok,false);
 });
 test('armour blocks normal bullets and a sentinel shatters only the enemy on its board',()=>{
-  const s=make();battle(s);const unit=s.state.defenders[0];s.state.defenders=[unit];
+  const s=make();battle(s);const unit=s.state.defenders[0];unit.cooldown=0;s.state.defenders=[unit];
   s.state.enemies=[{...enemy(100,'a',1000),armor:.5},enemy(101,'b',1000)];
   s.tick(.1);const bullet=s.state.events.find(e=>e.type==='hit')!.amount!;
   unit.family='sentinel';unit.cooldown=0;s.state.events=[];s.tick(.1);

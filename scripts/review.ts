@@ -9,7 +9,7 @@ import type { RoomSnapshot } from '../shared/protocol.js';
 
 interface Inspection { room: RoomSnapshot | null; playerId: string }
 interface ReviewWindow extends Window {
-  __review: { snapshot(): Inspection; caption(number: string, title: string, text: string): void };
+  __review: { snapshot(): Inspection; caption(number: string, title: string, text: string): void; audio(): Promise<{base64:string;startedAt:number}|null> };
 }
 const ffmpegPath: unknown = process.env.FFMPEG_PATH ?? createRequire(import.meta.url)('ffmpeg-static');
 const base = process.env.REVIEW_BASE_URL ?? 'http://127.0.0.1:3000';
@@ -22,6 +22,7 @@ const checks: { name: string; passed: boolean }[] = [];
 const browser = await chromium.launch({ headless: true });
 const contexts: BrowserContext[] = [];
 let videoPath = '';
+let videoStartedAt=0,audioOffset=0,audioCaptured=false;
 let summary = { wave: 0, kills: 0, defenders: 0, seconds: 0 };
 
 async function inspect(page: Page): Promise<Inspection & { game: DefenseState }> {
@@ -120,7 +121,7 @@ function remember(page:Page):void{
 }
 try{
   const mainContext=await browser.newContext({viewport:{width:1440,height:1080},deviceScaleFactor:1,recordVideo:{dir:resolve(directory,'raw'),size:{width:1440,height:1080}}});
-  contexts.push(mainContext);const main=await mainContext.newPage();remember(main);const video=main.video();assert.ok(video);
+  contexts.push(mainContext);videoStartedAt=Date.now();const main=await mainContext.newPage();remember(main);const video=main.video();assert.ok(video);
   await main.goto(base+'/?record=1');await main.waitForSelector('.connection.connected',{state:'attached'});await main.evaluate(()=>document.fonts.ready);
   await main.locator('#nickname').fill('까마귀');
   await caption(main,'01','운명으로 모인 여섯 직업','개인 운빨 디펜스 · 직접 만든 사람형 도트 · 3막 12웨이브.');
@@ -230,6 +231,11 @@ try{
   }
   const commands=await main.locator('.command-bar').boundingBox();assert.ok(commands&&commands.y+commands.height<=1080);
   checks.push({name:'PC 주요 명령과 전장·정보가 녹화 화면 안에 표시',passed:true});
+  const recordedAudio=await main.evaluate(()=>(window as unknown as ReviewWindow).__review.audio());
+  assert.ok(recordedAudio&&recordedAudio.base64.length>1000,'Capture real synthesized game output');
+  await writeFile(resolve(directory,'game-audio.webm'),Buffer.from(recordedAudio.base64,'base64'));
+  audioOffset=Math.max(0,(recordedAudio.startedAt-videoStartedAt)/1000);audioCaptured=true;
+  checks.push({name:'실제 게임 효과음 버스 녹음 · 마이크 사용 없음',passed:true});
   const ids=final.army.map(d=>d.id).sort();
   await main.reload();await main.waitForSelector('#battlefield');const resumed=await own(main);
   assert.equal(resumed.playerId,originalId);assert.equal(resumed.room!.code,code);assert.deepEqual(resumed.army.map(d=>d.id).sort(),ids);
@@ -249,13 +255,18 @@ try{
 await copyFile(videoPath, resolve(directory, 'nightwatch-preview.webm'));
 assert.ok(typeof ffmpegPath === 'string' && ffmpegPath.length > 0, 'FFmpeg must be available in the cloud runner');
 const output = resolve(directory, 'nightwatch-preview.mp4');
-const result = spawnSync(ffmpegPath, ['-hide_banner', '-loglevel', 'error', '-y', '-i', videoPath,
-  '-c:v', 'libx264', '-preset', 'fast', '-crf', '24', '-pix_fmt', 'yuv420p',
-  '-r', '30', '-movflags', '+faststart', output], { encoding: 'utf8', timeout: 180_000 });
+const audioInputs=audioCaptured?['-i',resolve(directory,'game-audio.webm')]:[];
+const audioFilter=audioCaptured?['-filter_complex','[1:a]adelay='+Math.round(audioOffset*1000)+'|'+Math.round(audioOffset*1000)+',apad[a]','-map','0:v:0','-map','[a]','-c:a','aac','-b:a','128k','-shortest']:[];
+const result=spawnSync(ffmpegPath,['-hide_banner','-loglevel','error','-y','-i',videoPath,...audioInputs,
+  '-c:v','libx264','-preset','fast','-crf','24','-pix_fmt','yuv420p','-r','30',...audioFilter,'-movflags','+faststart',output],
+  {encoding:'utf8',timeout:300_000});
 assert.equal(result.status, 0, result.stderr);
 const decoded = spawnSync(ffmpegPath, ['-v', 'error', '-i', output, '-f', 'null', '-'], { encoding: 'utf8', timeout: 120_000 });
 assert.equal(decoded.status, 0, decoded.stderr);
 checks.push({ name: 'MP4 인코딩과 전체 영상 디코딩 확인', passed: true });
+const audioDecode=spawnSync(ffmpegPath,['-v','error','-i',output,'-map','0:a:0','-f','null','-'],{encoding:'utf8',timeout:120_000});
+assert.equal(audioDecode.status,0,audioDecode.stderr);
+checks.push({name:'MP4 효과음 트랙 인코딩과 전체 디코딩 확인',passed:true});
 const sheet=spawnSync(ffmpegPath,['-hide_banner','-loglevel','error','-y','-ss','26','-i',output,
   '-vf','fps=1/20,scale=480:-1,tile=3x3','-frames:v','1',resolve(directory,'combat-sheet.jpg')],{encoding:'utf8',timeout:60_000});
 assert.equal(sheet.status,0,sheet.stderr);
@@ -264,7 +275,7 @@ await writeFile(resolve(directory, 'verification.json'), JSON.stringify({
   sourceCommit: process.env.GITHUB_SHA ?? null,
   repository: process.env.GITHUB_REPOSITORY ?? null,
   recordedAt: new Date().toISOString(), browser: 'Playwright Chromium',
-  automatedPlayers: 2, mode: '개인 운빨 디펜스', humanPixelCharacters: true, version: '0.3', fullRun: true, playback: '실제 서버와 클라이언트의 자동 조작 녹화',
+  automatedPlayers: 2, mode: '개인 운빨 디펜스', humanPixelCharacters: true, version: '0.3', fullRun: true, realGameAudio: audioCaptured, playback: '실제 서버와 클라이언트의 자동 조작 녹화',
   limitation: '동일 클라우드 실행 환경에서의 검증이며 실제 인터넷 지연이나 손 조작감을 대신하지 않습니다.',
   summary, checks, chapters,
 }, null, 2));
