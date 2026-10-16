@@ -44,9 +44,9 @@ export function loadWorldArt():Promise<void>{
  }))).then(()=>{});
  return loading;
 }
-export function scenery(name:string,x:number,z:number,size:number,rotation=0):T.Mesh|null{
+export function scenery(name:string,x:number,z:number,size:number,rotation=0,tint='#ffffff'):T.Mesh|null{
  const geo=models.get(name);if(!geo)return null;
- const mesh=new T.Mesh(geo,material);mesh.position.set(x,.02,z);mesh.scale.setScalar(size);mesh.rotation.y=rotation;mesh.castShadow=true;mesh.receiveShadow=true;return mesh;
+ const paint=material.clone();paint.color.set(tint);const mesh=new T.Mesh(geo,paint);mesh.position.set(x,.02,z);mesh.scale.setScalar(size);mesh.rotation.y=rotation;mesh.castShadow=true;mesh.receiveShadow=true;return mesh;
 }
 const signs=new Map<string,T.MeshBasicMaterial>(),signPlane=new T.PlaneGeometry(1,1);
 signPlane.userData.shared=true;

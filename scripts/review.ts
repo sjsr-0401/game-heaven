@@ -17,6 +17,12 @@ const now=()=> (Date.now()-videoStart)/1000;
 function check(name:string,passed=true):void{checks.push({name,passed});assert.ok(passed,name);console.log('CHECK '+name);}
 async function quick(page:Page,selector:string):Promise<boolean>{const el=page.locator(selector).first();if(!await el.isVisible()||!await el.isEnabled())return false;const box=await el.boundingBox();if(!box)return false;await page.mouse.click(box.x+box.width/2,box.y+box.height/2);return true;}
 async function snapshot(page:Page):Promise<{room:RoomSnapshot|null;playerId:string}>{return await page.evaluate(()=>window.__review!.snapshot());}
+async function playfieldFits(page:Page):Promise<boolean>{
+ return await page.evaluate(()=>{
+  const canvas=document.querySelector('.world canvas')?.getBoundingClientRect();if(!canvas||Math.abs(canvas.width-innerWidth)>1||Math.abs(canvas.height-innerHeight)>1||Math.abs(canvas.left)>1||Math.abs(canvas.top)>1)return false;
+  return ['.house-status','.journey-status','.supply-count','.controls-hud'].every(selector=>{const rect=document.querySelector(selector)!.getBoundingClientRect();return rect.left>=-1&&rect.top>=0&&rect.right<=innerWidth+1&&rect.bottom<=innerHeight+1;});
+ });
+}
 async function newPage(name:string,record=false):Promise<Page>{
   const context=await browser.newContext({viewport:record?{width:1440,height:900}:{width:960,height:700},deviceScaleFactor:record?1:.65,...(record?{recordVideo:{dir:'artifacts/raw',size:{width:1440,height:900}}}:{})});
   contexts.push(context);const page=await context.newPage();pages.push(page);keys.set(page,new Set());
@@ -24,7 +30,7 @@ async function newPage(name:string,record=false):Promise<Page>{
   const focus=await context.newCDPSession(page);await focus.send('Emulation.setFocusEmulationEnabled',{enabled:true});
   page.on('pageerror',e=>errors.push(e.message));page.on('console',message=>{if(message.type()==='error'&&!message.text().includes('favicon'))errors.push(message.text());});
   if(record)videoStart=Date.now();
-  await page.goto(base+'/?review=1'+(record?'&record=1&graphics=standard':'&graphics=economy&review-helper=1'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
+  await page.goto(base+'/?review=1'+(record?'&record=1&graphics=economy':'&graphics=economy&review-helper=1'),{waitUntil:'domcontentloaded',timeout:60000});await page.locator('#connection.online').waitFor({timeout:30000});await page.locator('#nickname').fill(name);
   return page;
 }
 async function caption(title:string,description:string):Promise<void>{await main.evaluate(({title,description})=>window.__review!.caption(title,description),{title,description});}
@@ -64,6 +70,7 @@ try{
   await section('한 집, 두 명의 도주 팀','실제 두 브라우저가 같은 서버의 방에 합류하고 출발합니다.',22);
   await main.locator('#ready-start').click();await main.locator('.world canvas').waitFor();await main.waitForTimeout(1000);
   check('실제 2인 원정 시작',(await snapshot(main)).room!.phase==='playing');
+  check('두 전장과 HUD가 화면 전체에 올바르게 배치됨',await playfieldFits(main)&&await playfieldFits(friend));
   const aimStart=(await snapshot(main)).room!.game as EscapeState;
   const fixedCursor=await main.evaluate(v=>window.__review!.project(-14,v-.5,.4),aimStart.house.z);
   assert.ok(fixedCursor?.visible);await main.mouse.move(fixedCursor.x,fixedCursor.y);await main.waitForTimeout(450);
@@ -115,12 +122,15 @@ try{
   await main.waitForFunction(()=>document.querySelector<HTMLButtonElement>('#ready-start')?.disabled===false);
   await section('이번에는 네 명이 함께','네 개의 독립 브라우저가 같은 집과 물체를 공유하는 실제 4인 플레이입니다.',30);
   await main.locator('#ready-start').click();await main.locator('.world canvas').waitFor();
+  check('네 전장의 크기와 HUD 배치 정상',(await Promise.all([main,friend,third,fourth].map(playfieldFits))).every(Boolean));
   const fourStart=Date.now();while(Date.now()-fourStart<32000){await Promise.all([main,friend,third,fourth].map((p,i)=>agent(p,i)));await main.waitForTimeout(140);}
   await Promise.all([main,friend,third,fourth].map(release));await main.screenshot({path:'artifacts/four-player.png'});
   const fourStates=await Promise.all([main,friend,third,fourth].map(snapshot));
   check('4인 위치·집·아이템이 같은 서버 상태로 동기화',fourStates.every(p=>(p.room!.game as EscapeState).crew.length===4&&Math.abs((p.room!.game as EscapeState).house.z-(fourStates[0].room!.game as EscapeState).house.z)<1));
+  check('네 명 모두 실제 갈고리 조작',((fourStates[0].room!.game as EscapeState).crew.every(p=>p.stats.hooks>0)));
   const metrics=await main.evaluate(()=>window.__review!.metrics());
   await caption('같이 돌아갈 집이 있으니까.','2–4인 협동 액션 · 실제 실행과 조작으로 녹화한 영상');await main.waitForTimeout(2500);
+  const audioStatus=await main.evaluate(()=>window.__review!.audioStatus());check('모든 재질별 효과음 파일 로드·디코딩',audioStatus.loaded===audioStatus.total&&audioStatus.total>0);
   audio=await main.evaluate(()=>window.__review!.audio());check('마이크 없이 실제 게임 효과음 출력 녹음',!!audio?.base64);
   const fourPlayerIds=(fourStates[0].room!.game as EscapeState).crew.map(p=>p.id);
   await main.reload();await main.locator('.world canvas').waitFor();check('4인 원정 재접속 유지',(await snapshot(main)).playerId===fourStates[0].playerId&&((await snapshot(main)).room!.game as EscapeState).crew.map(p=>p.id).join()===fourPlayerIds.join());

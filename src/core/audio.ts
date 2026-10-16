@@ -1,15 +1,43 @@
-import type {EscapeEvent,EscapeState} from '../../shared/escape.js';
+import {onDeck,type EscapeEvent,type EscapeState} from '../../shared/escape.js';
 import type { CombatEvent } from '../../shared/defense.js';
 
 let audio:AudioContext|null=null,master:GainNode|null=null,noise:AudioBuffer|null=null;
 let enabled=false,last=0;
 let recorder:MediaRecorder|null=null,recordedAt=0;
 const chunks:Blob[]=[];
+const soundFiles={
+ hook0:'kenney-impact/Audio/impactMetal_light_000.ogg',hook1:'kenney-impact/Audio/impactMetal_light_001.ogg',
+ hit0:'kenney-impact/Audio/impactMetal_medium_000.ogg',hit1:'kenney-impact/Audio/impactMetal_medium_001.ogg',
+ armor:'kenney-impact/Audio/impactMetal_heavy_000.ogg',house0:'kenney-impact/Audio/impactWood_heavy_000.ogg',house1:'kenney-impact/Audio/impactWood_heavy_001.ogg',
+ hurt:'kenney-impact/Audio/impactPunch_heavy_000.ogg',plank0:'kenney-impact/Audio/impactPlank_medium_000.ogg',plank1:'kenney-impact/Audio/impactPlank_medium_001.ogg',
+ pickup:'kenney-impact/Audio/impactGeneric_light_000.ogg',tin:'kenney-impact/Audio/impactTin_medium_000.ogg',
+ concrete0:'kenney-impact/Audio/footstep_concrete_000.ogg',concrete1:'kenney-impact/Audio/footstep_concrete_001.ogg',
+ wood0:'kenney-impact/Audio/footstep_wood_000.ogg',wood1:'kenney-impact/Audio/footstep_wood_001.ogg',
+ click:'kenney-interface/Audio/click_003.ogg',select:'kenney-interface/Audio/select_001.ogg',confirm:'kenney-interface/Audio/confirmation_001.ogg',close:'kenney-interface/Audio/close_001.ogg'
+};
+type Sample=keyof typeof soundFiles;
+const sounds=new Map<Sample,AudioBuffer>(),steps=new Map<string,number>();let soundsLoading:Promise<void>|null=null,voices=0,audioPlayer='',listener={x:0,z:0};
+function loadSoundKit(context:AudioContext):void{
+ if(soundsLoading)return;
+ soundsLoading=Promise.all((Object.entries(soundFiles) as [Sample,string][]).map(async([name,path])=>{
+  const response=await fetch('/art/'+path);if(!response.ok)throw Error('Missing game sound '+path);sounds.set(name,await context.decodeAudioData(await response.arrayBuffer()));
+ })).then(()=>{}).catch(error=>console.error(String(error)));
+}
+export function gameAudioStatus():{loaded:number;total:number}{return{loaded:sounds.size,total:Object.keys(soundFiles).length};}
+export function setGameAudioPlayer(id:string):void{audioPlayer=id;steps.clear();}
+function sample(name:Sample,volume=.3,rate=1,pan=0):boolean{
+ if(!enabled||!audio||!master||audio.state!=='running')return false;
+ const buffer=sounds.get(name);if(!buffer)return false;if(voices>=18)return true;
+ const ctx=audio,source=ctx.createBufferSource(),gain=ctx.createGain(),position=ctx.createStereoPanner();
+ source.buffer=buffer;source.playbackRate.value=rate;gain.gain.value=volume;position.pan.value=Math.max(-.8,Math.min(.8,pan));
+ source.connect(gain);gain.connect(position);position.connect(master);voices++;source.start();
+ source.onended=()=>{voices--;source.disconnect();gain.disconnect();position.disconnect();};return true;
+}
 export function setSoundEnabled(value:boolean):void{
   enabled=value;
   if(!value){if(master&&audio)master.gain.setTargetAtTime(0,audio.currentTime,.025);return;}
   if(!audio){
-    audio=new AudioContext();master=audio.createGain();master.gain.value=.6;master.connect(audio.destination);
+    audio=new AudioContext();loadSoundKit(audio);master=audio.createGain();master.gain.value=.6;master.connect(audio.destination);
     noise=audio.createBuffer(1,Math.ceil(audio.sampleRate*.7),audio.sampleRate);
     const data=noise.getChannelData(0);let seed=19723;
     for(let i=0;i<data.length;i++){seed=(Math.imul(seed,1664525)+1013904223)|0;data[i]=(seed>>>0)/2147483648-1;}
@@ -44,7 +72,7 @@ function chime(rank:number):void{
   const root=rank>=3?440:330;
   for(let i=0;i<Math.min(4,rank+1);i++)pulse(root*[1,1.25,1.5,2][i],root*[1,1.25,1.5,2][i],.3+i*.07,.045,'sine',i*.07);
 }
-export function playUiSound():void{pulse(170,90,.12,.03);}
+export function playUiSound():void{if(!sample('click',.18))pulse(170,90,.12,.03);}
 export function playCombat(event:CombatEvent):void{
   if(!enabled||!audio)return;
   if(event.type==='summon'){chime(event.rank??0);return;}
@@ -71,27 +99,39 @@ export async function finishAudioRecording():Promise<{base64:string;startedAt:nu
 
 let lastBeat=-1,escapeHitAt=0;
 export function playEscapeEvent(e:EscapeEvent):void {
-  if(!enabled||!audio)return;
-  if(e.type==='hook'){impact(.1,.06,2600,'bandpass');pulse(350,120,.13,.04,'triangle');}
-  if(e.type==='throw'){impact(.16,.07,1200);pulse(140,300,.12,.025);}
-  if(e.type==='hit'&&performance.now()-escapeHitAt>55){escapeHitAt=performance.now();impact(.12,.12,1100);pulse(e.text==='crew'?80:125,35,.13,.06,'sine');}
-  if(e.type==='explode'){impact(.48,.22,e.prop==='battery'?2400:800);pulse(85,24,.45,.13,'sine');}
-  if(e.type==='kill'){pulse(210,80,.16,.035);}
-  if(e.type==='install'||e.type==='repair'||e.type==='rescue'){for(let i=0;i<3;i++)pulse([330,440,550][i],[330,440,550][i],.23,.025,'sine',i*.07);}
-  if(e.type==='warning'){pulse(180,150,.2,.035,'triangle');pulse(180,150,.2,.03,'triangle',.28);}
-  if(e.type==='camp'||e.type==='upgrade'){chime(2);}
-  if(e.type==='boss'){impact(.6,.12,600);pulse(70,35,.7,.07,'sine');}
-  if(e.type==='win'){[262,330,392,523,659].forEach((n,i)=>pulse(n,n,1,.035,'sine',i*.15));}
-  if(e.type==='lose'){[196,175,147].forEach((n,i)=>pulse(n,n,.7,.035,'sine',i*.18));}
-  if(e.type==='dodge'||e.type==='pad'){impact(.12,.035,1500,'highpass');}
+ if(!enabled||!audio)return;
+ const pan=((e.x-listener.x)*.836+(e.z-listener.z)*.548)/15,range=Math.hypot(e.x-listener.x,e.z-listener.z),gain=1/(1+range*.025),rate=.96+(e.id%5)*.02;
+ if(e.type==='hook'){if(!sample(e.id%2?'hook0':'hook1',.19*gain,rate,pan))impact(.1,.06,2600,'bandpass');impact(.07,.025,2100,'highpass');}
+ if(e.type==='throw'){sample('plank0',.1*gain,.9,pan);impact(.14,.035,1500,'bandpass');}
+ if(e.type==='hit'&&performance.now()-escapeHitAt>55){
+  escapeHitAt=performance.now();const kind:Sample=e.text==='crew'?'hurt':e.text==='house'?e.id%2?'house0':'house1':e.text==='장갑'?'armor':e.id%2?'hit0':'hit1';
+  if(!sample(kind,(e.text==='crew'?.28:.24)*gain,rate,pan))impact(.12,.12,1100);
+  if(e.text==='crew'||e.text==='house')pulse(72,32,.12,.025,'sine');
+ }
+ if(e.type==='explode'){sample(e.prop==='battery'?'tin':'armor',.3*gain,.8,pan);impact(.42,.2,e.prop==='battery'?1900:750);pulse(80,24,.4,.1,'sine');}
+ if(e.type==='kill'){sample('tin',.17*gain,.86,pan);}
+ if(e.type==='install'){sample(e.prop==='scrap'?'plank1':'select',.22*gain,rate,pan);}
+ if(e.type==='repair'||e.type==='rescue'){sample('confirm',.2*gain,1,pan);pulse(330,440,.17,.012,'sine',.12);}
+ if(e.type==='warning'){pulse(180,150,.2,.025,'triangle');pulse(180,150,.2,.022,'triangle',.28);}
+ if(e.type==='camp'||e.type==='upgrade'){sample('confirm',.19);}
+ if(e.type==='boss'){sample('armor',.28,.7,pan);impact(.6,.09,600);pulse(65,34,.65,.05,'sine');}
+ if(e.type==='win'){sample('confirm',.24);[262,330,392,523].forEach((n,i)=>pulse(n,n,.7,.018,'sine',i*.14));}
+ if(e.type==='lose'){sample('close',.22,.82);pulse(147,98,.6,.022,'sine');}
+ if(e.type==='dodge'||e.type==='pad'){impact(.1,.027,1500,'highpass');}
 }
 export function advanceEscapeAudio(s:EscapeState):void {
-  if(!enabled||!audio)return;
-  const beat=Math.floor(s.clock/.65);if(beat===lastBeat)return;lastBeat=beat;
-  if(s.phase==='won'||s.phase==='lost')return;
-  const bass=[65.4,65.4,77.8,58.3][Math.floor(beat/8)%4];
-  if(beat%2===0)pulse(bass,bass,.55,.012,'sine');
-  const notes=[261.6,0,392,0,311.1,0,349.2,0,261.6,0,466.2,392,0,311.1,0,0];
-  const note=notes[beat%notes.length];if(note)pulse(note,note,.45,s.phase==='camp'?.018:.008,'sine');
-  if(beat%4===0)impact(.35,.013,s.biome==='canal'?1400:850,'lowpass');
+ if(!enabled||!audio)return;
+ const own=s.crew.find(p=>p.id===audioPlayer);listener=own?{x:own.x,z:own.z}:{x:0,z:s.house.z};
+ for(const p of s.crew){
+  const stride=Math.floor(p.walk/1.55),before=steps.get(p.id);steps.set(p.id,stride);
+  if(before!==undefined&&before!==stride&&p.downUntil<=s.clock&&!p.left){
+   const deck=onDeck(p,s.house),pan=((p.x-listener.x)*.836+(p.z-listener.z)*.548)/15,volume=.085/(1+Math.hypot(p.x-listener.x,p.z-listener.z)*.13);
+   sample(deck?(stride%2?'wood0':'wood1'):(stride%2?'concrete0':'concrete1'),volume,.96+(stride%3)*.04,pan);
+  }
+ }
+ const beat=Math.floor(s.clock/.65);if(beat===lastBeat)return;lastBeat=beat;if(s.phase==='won'||s.phase==='lost')return;
+ const bass=[65.4,65.4,77.8,58.3][Math.floor(beat/8)%4];
+ if(beat%2===0)pulse(bass,bass,.55,.008,'sine');
+ if(s.phase==='camp'&&beat%2===0){const notes=[261.6,329.6,392,293.7];pulse(notes[Math.floor(beat/2)%4],notes[Math.floor(beat/2)%4],.45,.009,'sine');}
+ if(beat%4===0)impact(.3,.01,s.biome==='canal'?1400:850,'lowpass');
 }

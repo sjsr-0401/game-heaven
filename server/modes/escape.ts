@@ -1,6 +1,6 @@
 import type {PlayerInfo} from '../../shared/protocol.js';
 import {isRecord} from '../../shared/protocol.js';
-import {ESCAPE_ID,ESCAPE_VERSION,STAGE_ENDS,PROP_INFO,CREW_COLORS,clamp,dist,distanceToSegment,onDeck,upgradeCost,type EscapeState,type CrewActor,type Prop,type PropKind,type Enemy,type UpgradeId,type EscapeEvent,type Vec} from '../../shared/escape.js';
+import {WORLD_HALF_WIDTH,ESCAPE_ID,ESCAPE_VERSION,STAGE_ENDS,PROP_INFO,CREW_COLORS,clamp,dist,distanceToSegment,onDeck,upgradeCost,type EscapeState,type CrewActor,type Prop,type PropKind,type Enemy,type UpgradeId,type EscapeEvent,type Vec} from '../../shared/escape.js';
 import type {CommandResult,GameMode,ModeSession} from './types.js';
 interface Motion {x:number;z:number;at:number}
 const kinds:PropKind[]=['scrap','battery','barrel','repair','spring'];
@@ -173,7 +173,7 @@ export class EscapeSession implements ModeSession {
     if(!s.gate.open&&Math.abs(at.z-s.gate.z)<radius+1.4&&Math.abs(at.x)<radius+3)this.damageGate(damage,by);
     // Explosions push friends briefly; they cannot injure or down them.
     if(o.kind==='barrel')for(const p of this.actors())if(p.downUntil<=s.clock&&dist(p,at)<radius){
-      const d=Math.max(.1,dist(p,at));p.x=clamp(p.x+(p.x-at.x)/d*.7,-17,17);p.z+=(p.z-at.z)/d*.7;
+      const d=Math.max(.1,dist(p,at));p.x=clamp(p.x+(p.x-at.x)/d*.7,-WORLD_HALF_WIDTH,WORLD_HALF_WIDTH);p.z+=(p.z-at.z)/d*.7;
     }
   }
   private spawnEnemy(kind?:Enemy['kind']):void {
@@ -221,7 +221,7 @@ export class EscapeSession implements ModeSession {
       if(p.dodgeUntil>s.clock){const len=Math.hypot(x,z);if(len<.1){x=p.aimX;z=p.aimZ;}}
       const heavy=p.carry?s.props.find(o=>o.id===p.carry)?.kind==='scrap':false;
       const velocity=p.dodgeUntil>s.clock?12:4.5*(heavy?.77+s.upgrades.reel*.06:1);
-      p.x=clamp(p.x+x*velocity*dt,-17,17);p.z=clamp(p.z+z*velocity*dt,s.house.z-22,s.house.z+27);
+      p.x=clamp(p.x+x*velocity*dt,-WORLD_HALF_WIDTH,WORLD_HALF_WIDTH);p.z=clamp(p.z+z*velocity*dt,s.house.z-22,s.house.z+27);
       if(Math.hypot(x,z)>.1)p.walk+=velocity*dt;
       const rz=p.z-s.house.z;
       if(Math.abs(p.x)<2.2&&rz>-2.65&&rz<2.2){

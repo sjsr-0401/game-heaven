@@ -1,6 +1,6 @@
 import {crewPortrait,toolIcon} from './ui-art.js';
 import {EscapeScene} from './scene.js';
-import {playEscapeEvent,advanceEscapeAudio} from '../../core/audio.js';
+import {playEscapeEvent,advanceEscapeAudio,setGameAudioPlayer} from '../../core/audio.js';
 import {PROP_INFO,UPGRADE_INFO,upgradeCost,targetProgress,dist,type EscapeState,type UpgradeId,type EscapeEvent} from '../../../shared/escape.js';
 import type {RoomSnapshot} from '../../../shared/protocol.js';
 import type {ModeContext,ClientMode} from '../types.js';
@@ -13,7 +13,7 @@ export class EscapeView implements ClientMode {
   constructor(private context:ModeContext){
     context.element.innerHTML='<div class="playfield"><div class="world"></div><div class="world-vignette"></div><div class="world-labels"></div><div class="float-layer"></div>'
       +'<div class="mission-hud"><div class="mission-title"><span class="small-label" id="stage-label">01 / 먼지의 외곽</span><strong id="objective">집과 함께 앞으로!</strong><span id="sub-objective">길을 뚫고, 서로를 끌어올리세요.</span></div>'
-      +'<div class="house-status"><span>우리의 집 <b id="hull-text"></b></span><div class="hull-track"><i id="hull-bar"></i></div><small id="engine-status">AUTOPILOT · 자동 주행 중</small></div>'
+      +'<div class="house-status"><span>우리의 집 <b id="hull-text"></b></span><div class="hull-track"><i id="hull-bar"></i></div><small id="engine-status">자동 주행</small></div>'
       +'<div class="journey-status"><span id="journey-time">00:00</span><div class="journey-track"><i id="journey-bar"></i></div><small id="distance-text">방벽까지 140 m</small></div></div>'
       +'<div class="crew-hud"></div><div class="supply-count"><span>'+toolIcon('parts')+'</span><b id="stock">2</b><small>공용 부품</small></div>'
       +'<div class="boss-hud" hidden><span>고철 포식자 <b id="boss-percent"></b></span><div><i id="boss-bar"></i></div><small id="boss-hint">흡입할 때 화약통을 던지세요</small></div>'
@@ -22,6 +22,7 @@ export class EscapeView implements ClientMode {
       +'<div class="carried-item" id="held-item"><span class="item-orb">'+toolIcon('hand')+'</span><div><small>빈손</small><strong>좌클릭으로 물건을 회수하세요</strong></div></div>'
       +'<div class="action-guide"><button id="install-action"><kbd>E</kbd><span>장착 / 설치</span></button><button id="drop-action"><kbd>Q</kbd><span>내려놓기</span></button><button id="dodge-action"><kbd>Space</kbd><span id="dodge-status">회피 준비</span></button></div></div>'
       +'<div class="camp-overlay" hidden></div><div class="results-overlay" hidden></div><div class="aim-reticle" hidden></div></div>';
+    setGameAudioPlayer(context.playerId);
     const root=context.element;this.labels=root.querySelector('.world-labels')!;this.floats=root.querySelector('.float-layer')!;this.heldLabel=root.querySelector('#held-item')!;
     this.scene=new EscapeScene(root.querySelector('.world')!);this.scene.setOwnId(context.playerId);this.scene.onEvent(e=>this.onEvent(e));
     const opts={signal:this.abort.signal};
@@ -93,7 +94,7 @@ export class EscapeView implements ClientMode {
     text('#stock',String(s.resources));text('#journey-time',Math.floor(s.clock/60).toString().padStart(2,'0')+':'+Math.floor(s.clock%60).toString().padStart(2,'0'));
     (root.querySelector('#journey-bar') as HTMLElement).style.width=(targetProgress(s)*100)+'%';
     text('#distance-text','방벽 '+Math.max(0,Math.ceil(140-s.house.z))+'m · 폭풍 '+Math.max(0,Math.floor(s.house.z-s.stormZ))+'m 뒤');
-    text('#engine-status',s.house.boostUntil>s.clock?'TURBO · '+Math.ceil(s.house.boostUntil-s.clock)+'초':s.house.speed===0?'길을 열어 주세요':'AUTOPILOT · 자동 주행 중');
+    text('#engine-status',s.house.boostUntil>s.clock?'엔진 가속 · '+Math.ceil(s.house.boostUntil-s.clock)+'초':s.house.speed===0?'길을 열어 주세요':'자동 주행');
     const boss=s.enemies.find(e=>e.kind==='devourer'),bossHud=root.querySelector<HTMLElement>('.boss-hud')!;bossHud.hidden=!boss;
     if(boss){text('#boss-percent',Math.ceil(boss.hp/boss.maxHp*100)+'%');(root.querySelector('#boss-bar') as HTMLElement).style.width=(boss.hp/boss.maxHp*100)+'%';text('#boss-hint',boss.exposedUntil>s.clock?'흡입구가 열렸다! 화약통을 던지세요':'붉은 경고를 피하고, 물건을 모으세요');}
     const blocked=!s.gate.open&&Math.abs(s.house.z-(s.gate.z-10))<1;
@@ -104,7 +105,7 @@ export class EscapeView implements ClientMode {
     for(const c of s.crew){const card=crew.querySelector<HTMLElement>('[data-crew="'+c.id+'"]')!;card.classList.toggle('down',c.downUntil>s.clock);(card.querySelector('em') as HTMLElement).style.width=c.hp+'%';card.querySelector('.crew-state')!.textContent=c.left?'떠남':c.downUntil>s.clock?'구조!':c.carry?'운반 중':'';}
     const carried=s.props.find(o=>o.id===p.carry),key=carried?.kind??'empty';
     if(this.heldLabel.dataset.kind!==key){this.heldLabel.dataset.kind=key;this.heldLabel.innerHTML='<span class="item-orb" style="--item:'+ (carried?PROP_INFO[carried.kind].color:'#d5c8a5')+'">'+toolIcon(carried?carried.kind:'hand')+'</span><div><small>'+(carried?PROP_INFO[carried.kind].name:'빈손')+'</small><strong>'+(carried?PROP_INFO[carried.kind].hint:'좌클릭으로 물건을 회수하세요')+'</strong></div>';}
-    (root.querySelector('#install-action') as HTMLButtonElement).disabled=!carried||p.downUntil>s.clock||s.phase!=='travel';(root.querySelector('#drop-action') as HTMLButtonElement).disabled=!carried||p.downUntil>s.clock||s.phase!=='travel';(root.querySelector('#dodge-action') as HTMLButtonElement).disabled=p.dodgeReady>s.clock||p.downUntil>s.clock||s.phase!=='travel';
+    (root.querySelector('#install-action') as HTMLButtonElement).disabled=!carried||(carried.kind!=='spring'&&dist(p,s.house)>7.8)||p.downUntil>s.clock||s.phase!=='travel';(root.querySelector('#drop-action') as HTMLButtonElement).disabled=!carried||p.downUntil>s.clock||s.phase!=='travel';(root.querySelector('#dodge-action') as HTMLButtonElement).disabled=p.dodgeReady>s.clock||p.downUntil>s.clock||s.phase!=='travel';
     root.querySelector('.playfield')!.classList.toggle('controls-known',s.clock>35);root.querySelector('.playfield')!.classList.toggle('low-hull',s.house.hp/s.house.maxHp<.3);
     text('#dodge-status',p.dodgeReady>s.clock?(p.dodgeReady-s.clock).toFixed(1)+'초':'회피 준비');
     const hint=root.querySelector<HTMLElement>('#context-hint')!;
@@ -114,7 +115,7 @@ export class EscapeView implements ClientMode {
     const camp=root.querySelector<HTMLElement>('.camp-overlay')!;camp.hidden=s.phase!=='camp';
     if(s.phase==='camp'){
       const vote=s.votes[p.id],remaining=Math.ceil(s.campUntil-s.clock);
-      const campKey=JSON.stringify([s.resources,s.upgrades,s.votes]);if(this.campKey!==campKey){this.campKey=campKey;camp.innerHTML='<div class="camp-card"><span class="small-label">정비 · '+remaining+'초</span><h2>다음 길은, 우리가 고르자.</h2><p>개조는 모두에게 적용돼요. 공용 부품 <b>'+s.resources+'</b>개</p><div class="upgrade-grid">'
+      const campKey=JSON.stringify([s.resources,s.upgrades,s.votes]);if(this.campKey!==campKey){this.campKey=campKey;camp.innerHTML='<div class="camp-card"><span class="small-label">정비 · '+remaining+'초</span><h2>집 개조 · 경로 선택</h2><p>개조는 모두에게 적용돼요. 공용 부품 <b>'+s.resources+'</b>개</p><div class="upgrade-grid">'
         +(Object.keys(UPGRADE_INFO) as UpgradeId[]).map(k=>{const u=UPGRADE_INFO[k],level=s.upgrades[k],cost=upgradeCost(level);return'<button data-upgrade="'+k+'" '+(level>=2||s.resources<cost?'disabled':'')+'><i>'+toolIcon(k)+'</i><span><b>'+u.name+' <small>'+level+'/2</small></b><small>'+u.description+'</small></span><em>'+(level>=2?'완료':'부품 '+cost)+'</em></button>';}).join('')
         +'</div><div class="route-choices"><button data-route="canal" class="'+(vote==='canal'?'chosen':'')+'"><b>물안개 운하</b><small>운하 거리 · 빠른 적 · 차가운 물안개</small><span>'+Object.values(s.votes).filter(v=>v==='canal').length+'표</span></button><button data-route="foundry" class="'+(vote==='foundry'?'chosen':'')+'"><b>붉은 제련소</b><small>뜨거운 거리 · 무거운 적 · 붉은 석양</small><span>'+Object.values(s.votes).filter(v=>v==='foundry').length+'표</span></button></div><footer>다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발</footer></div>';}camp.querySelector('.small-label')!.textContent='정비 · '+remaining+'초';camp.querySelector('footer')!.textContent='다수결로 결정 · 동률이면 운하 · '+remaining+'초 후 자동 출발';
     }
@@ -135,7 +136,7 @@ export class EscapeView implements ClientMode {
   }
   private onEvent(e:EscapeEvent):void {
     playEscapeEvent(e);
-    if(e.type==='hit'&&e.value){const node=document.createElement('b');node.className='damage-float '+(e.text==='crew'||e.text==='house'?'hurt':'');node.textContent=String(e.value);node.dataset.x=String(e.x);node.dataset.z=String(e.z);node.dataset.born=String(performance.now());this.floats.append(node);if(this.floats.children.length>35)this.floats.firstElementChild?.remove();}
+    if(e.type==='hit'&&e.value){const node=document.createElement('b');node.className='damage-float '+(e.text==='crew'||e.text==='house'?'hurt':'');node.textContent=String(e.value);node.dataset.x=String(e.x+(e.id%3-1)*.25);node.dataset.z=String(e.z);node.dataset.born=String(performance.now());this.floats.append(node);if(this.floats.children.length>35)this.floats.firstElementChild?.remove();}
     if(['rescue','boss','camp','win','lose','upgrade'].includes(e.type)){
       const banner=this.context.element.querySelector<HTMLElement>('.event-announcement')!;banner.hidden=false;banner.dataset.until=String(performance.now()+2500);
       banner.querySelector('span')!.textContent=e.type==='rescue'?'NICE SAVE!':e.type==='upgrade'?'UPGRADED':'HOUSEFLIGHT';

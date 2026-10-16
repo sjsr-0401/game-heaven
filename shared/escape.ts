@@ -1,3 +1,4 @@
+export const WORLD_HALF_WIDTH=12;
 export const ESCAPE_ID = 'houseflight';
 export const ESCAPE_VERSION = '1.0.0';
 export const STAGE_ENDS = [44, 88, 140] as const;

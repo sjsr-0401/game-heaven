@@ -64,7 +64,7 @@ jobs:
         env:
           REVIEW_BASE_URL: http://127.0.0.1:3000
           FFMPEG_PATH: ffmpeg
-          REVIEW_SLICE_ONLY: '1'
+          REVIEW_SLICE_ONLY: '0'
         run: |
           npm start > /tmp/game-heaven-server.log 2>&1 &
           SERVER_PID=$!
@@ -76,6 +76,17 @@ jobs:
           curl --fail --silent http://127.0.0.1:3000/health
           npm run review
           npm run review:html
+      - name: Upload stills for visual review
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: houseflight-stills
+          retention-days: 30
+          if-no-files-found: warn
+          path: |
+            artifacts/*.png
+            artifacts/verification.json
+            artifacts/failure-details.json
       - name: Upload video and standalone HTML
         if: always()
         uses: actions/upload-artifact@v4
