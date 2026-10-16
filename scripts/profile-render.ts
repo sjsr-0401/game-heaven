@@ -2,7 +2,7 @@ import {chromium} from 'playwright';
 import {mkdir,writeFile} from 'node:fs/promises';
 const base=process.env.REVIEW_BASE_URL??'http://127.0.0.1:3000';
 const common=['--disable-backgrounding-occluded-windows','--disable-renderer-backgrounding','--disable-background-timer-throttling','--disable-gpu-sandbox','--enable-unsafe-swiftshader'];
-const trials:{name:string;width:number;height:number;record:boolean;headless:boolean;args:string[];channel?:string;quality?:string;capture?:'screencast'|'native'}[]=[
+const trials:{name:string;width:number;height:number;record:boolean;headless:boolean;args:string[];channel?:string;quality?:string;capture?:'screencast'|'native';deviceScaleFactor?:number}[]=[
  {name:'shell-default1280',width:1280,height:800,record:true,headless:true,args:[]},
  {name:'shell-fallback1280',width:1280,height:800,record:true,headless:true,args:['--use-gl=angle','--use-angle=swiftshader-webgl']},
  {name:'full-default1280',width:1280,height:800,record:true,headless:true,channel:'chromium',args:[]},
@@ -11,6 +11,7 @@ const trials:{name:string;width:number;height:number;record:boolean;headless:boo
  {name:'full-standard1280',width:1280,height:800,record:true,headless:true,channel:'chromium',quality:'standard',args:[]},
  {name:'full-cdp1280',width:1280,height:800,record:true,headless:true,channel:'chromium',capture:'screencast',args:['--use-gl=angle','--use-angle=swiftshader-webgl']},
  {name:'full-native1280',width:1280,height:800,record:true,headless:true,channel:'chromium',capture:'native',args:['--use-gl=angle','--use-angle=swiftshader-webgl']},
+ {name:'full-high1280',width:1280,height:800,record:false,headless:true,channel:'chromium',quality:'high',deviceScaleFactor:1.5,args:['--use-gl=angle','--use-angle=swiftshader-webgl']},
  {name:'shell-live1280',width:1280,height:800,record:false,headless:true,args:[]}
 ];
 await mkdir('artifacts/profile',{recursive:true});
@@ -19,7 +20,7 @@ for(const trial of trials){
  let browser:Awaited<ReturnType<typeof chromium.launch>>|null=null;
  try{
   browser=await chromium.launch({headless:trial.headless,channel:trial.channel,args:[...common,...trial.args],env:{...process.env,...(trial.name.startsWith('mesa')?{LIBGL_ALWAYS_SOFTWARE:'1'}:{})}});
-  const context=await browser.newContext({viewport:{width:trial.width,height:trial.height},...(trial.record&&!trial.capture?{recordVideo:{dir:'artifacts/profile-raw',size:{width:trial.width,height:trial.height}}}:{})});
+  const context=await browser.newContext({viewport:{width:trial.width,height:trial.height},deviceScaleFactor:trial.deviceScaleFactor??1,...(trial.record&&!trial.capture?{recordVideo:{dir:'artifacts/profile-raw',size:{width:trial.width,height:trial.height}}}:{})});
   const main=await context.newPage(),friendContext=await browser.newContext({viewport:{width:800,height:600}}),friend=await friendContext.newPage();
   for(const [page,ctx] of [[main,context],[friend,friendContext]] as const){const focus=await ctx.newCDPSession(page);await focus.send('Emulation.setFocusEmulationEnabled',{enabled:true});await page.goto(base+'/?review=1&graphics='+(trial.quality??'economy')+(page===friend?'&review-helper=1':''),{waitUntil:'domcontentloaded',timeout:20000});await page.locator('#connection.online').waitFor({state:'attached',timeout:15000});await page.locator('#nickname').fill(page===main?'계측 A':'계측 B');}
   await main.locator('#create-room').click();await main.locator('#lobby-copy').waitFor();
