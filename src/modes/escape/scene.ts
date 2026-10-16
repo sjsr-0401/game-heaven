@@ -151,8 +151,16 @@ function monster(e:Enemy):T.Group {
     }
   }
   const result=batch(g);
-  if(e.kind==='rammer'){const armor=box(result,0,.85,-.8,1.72,1.18,.28,'#797967',0,0,.03);result.userData.armor=armor;}
-  if(e.kind==='devourer'){const material=new T.MeshLambertMaterial({color:'#87efd5',emissive:'#77ffe0',emissiveIntensity:1.1,});const core=new T.Mesh(new T.CylinderGeometry(.78,.78,.18,10),material);core.rotation.x=Math.PI/2;core.position.set(0,1.6,-2.25);result.add(core);result.userData.core=core;}
+  if(e.kind==='rammer'){
+    const shield=new T.Group();box(shield,0,.85,-.8,1.72,1.18,.28,'#797967',0,0,.03);
+    for(const x of [-.55,.55])box(shield,x,.83,-.965,.18,.95,.018,'#d5b471',0,0,-.45);
+    for(const x of [-.7,.7])for(const y of [.4,1.3])cylinder(shield,x,y,-.99,.055,.055,.035,'#d5d0b4',7,Math.PI/2);
+    const armor=batch(shield);result.add(armor);result.userData.armor=armor;
+  }
+  if(e.kind==='devourer'){const material=new T.MeshLambertMaterial({color:'#87efd5',emissive:'#77ffe0',emissiveIntensity:1.1,});const core=new T.Mesh(new T.CylinderGeometry(.78,.78,.18,10).rotateX(Math.PI/2),material);core.position.set(0,1.6,-2.25);result.add(core);result.userData.core=core;
+    const jaw=new T.Group();jaw.position.set(0,.85,-2.05);box(jaw,0,0,-.15,2.45,.28,.52,'#9f785c');
+    for(const x of [-.85,-.28,.28,.85])box(jaw,x,.25,-.23,.25,.32,.22,'#d4bf98',.1);
+    const plate=batch(jaw);plate.position.set(0,0,0);result.add(plate);result.userData.jaw=plate;}
   return result;
 }
 interface HouseRig{root:T.Group;cabin:T.Group;wheels:T.Group[];engine:T.Group;chimney:T.Vector3}
@@ -181,9 +189,9 @@ function houseModel():HouseRig {
     const m=new T.Mesh(new T.ShapeGeometry(triangle),mat('#819184'));m.position.set(0,3.4,z);if(z<0)m.rotation.y=Math.PI;g.add(m);
   }
   for(const side of [-1,1]){
-    box(g,side*1.18,4.16,0,3.02,.2,5.8,'#3f7771',0,0,-side*.61);
-    for(let z=-2.7;z<2.9;z+=.4)box(g,side*1.18,4.29,z,3.03,.055,.065,'#5e9386',0,0,-side*.61);
-    box(g,side*2.38,3.42,0,.16,.2,6,'#314f4c');
+    box(g,side*1.18,4.16,0,3.02,.2,5.8,'#4b6c8b',0,0,-side*.61);
+    for(let z=-2.7;z<2.9;z+=.4)box(g,side*1.18,4.29,z,3.03,.055,.065,'#7894a0',0,0,-side*.61);
+    box(g,side*2.38,3.42,0,.16,.2,6,'#334858');
   }
   box(g,0,4.98,0,.2,.16,5.9,'#b0b79c');
   box(g,1.17,4.32,1.6,1.15,.045,1.4,'#b57c59',0,0,-.61);box(g,-1.35,4.22,-1.5,.8,.055,1.05,'#a0afa7',0,0,.61);
@@ -199,7 +207,7 @@ function houseModel():HouseRig {
   cylinder(g,1.2,4.75,1.35,.22,.24,2,'#54605a',10);box(g,1.2,5.8,1.35,.8,.14,.8,'#9f9b7d');
   for(const x of [-3.55,3.55]){cylinder(g,x,1.4,4.3,.13,.13,1.15,'#586258',8);box(g,x,2.05,4.3,.38,.48,.38,'#e3ae64',0,0,0,1.2);}
   const cabin=batch(g);root.add(cabin);
-  for(const x of [-3.3,3.3])for(const z of [-3.1,0,3.1]){
+  for(const x of [-4.05,4.05])for(const z of [-3.1,0,3.1]){
     const wheel=new T.Group();wheel.position.set(x,.05,z);root.add(wheel);wheels.push(wheel);
     cylinder(wheel,0,0,0,.87,.87,.66,'#303c3d',14,0,Math.PI/2);
     cylinder(wheel,x<0?-.36:.36,0,0,.6,.6,.09,'#9f8864',12,0,Math.PI/2);
@@ -215,14 +223,16 @@ function houseModel():HouseRig {
 function chunkModel(index:number,biome:string):T.Group {
   const g=new T.Group(),details=new T.Group(),rand=seeded(index*9137+133),foundry=biome==='foundry',canal=biome==='canal';
   const ground=foundry?'#86776c':canal?'#9dafa1':'#b7ab91';
-  box(g,0,-.75,0,48,1.2,30,ground);box(g,0,-.08,0,11,.18,30,foundry?'#56535a':'#59636c');
+  box(g,0,-.75,0,canal?56:48,1.2,30,ground);box(g,0,-.08,0,11,.18,30,foundry?'#56535a':'#59636c');
   for(const side of [-1,1]){
     box(g,side*7.65,.005,0,4,.14,30,canal?'#a8b6ae':'#b6af9b');
     box(g,side*5.73,.09,0,.23,.27,30,'#e0d5b9');
     for(let z=-14;z<15;z+=2.5)box(g,side*7.65,.081,z,3.8,.018,.025,'#7b827b');
     if(canal){
-      box(g,side*10.7,-.27,0,2,.1,30,'#467d8d');box(g,side*11.9,.1,0,.3,.65,30,'#768b91');
-      for(let i=0;i<9;i++)box(g,side*(10+rand()),-.2,rand()*29-14,.5+rand(),.015,.05,'#8fc0c2',0,rand()*.5);
+      box(g,side*14.2,-.02,0,3.4,.1,30,'#467d8d');box(g,side*12.35,.25,0,.3,.65,30,'#768b91');box(g,side*16.1,.25,0,.3,.65,30,'#768b91');
+      box(g,side*10.9,.045,0,2.6,.08,30,'#938978');for(let z=-14;z<15;z+=.7)box(g,side*10.9,.091,z,2.6,.012,.035,'#5c6664');
+      for(const z of [-13,-6,1,8,14])box(g,side*12.25,.9,z,.12,1.4,.12,'#536c74');box(g,side*12.25,1.55,0,.12,.12,30,'#71898b');
+      for(let i=0;i<9;i++)box(g,side*(12.8+rand()*2.8),.05,rand()*29-14,.5+rand(),.015,.05,'#8fc0c2',0,rand()*.5);
     }else{
       for(let i=0;i<8;i++){const x=side*(10+rand()*2),z=-14+i*3.7;box(g,x,.045,z,.45+rand()*.8,.035,.12,'#858b78',0,rand()*3);}
     }
@@ -234,7 +244,7 @@ function chunkModel(index:number,biome:string):T.Group {
   }
   for(const side of [-1,1]){
     for(let i=0;i<3;i++){
-      const x=side*(17+rand()*1.4),z=-11+i*11+rand()*2,size=7+rand()*2;
+      const x=side*((canal?20.7:17)+rand()*1.4),z=-11+i*11+rand()*2,size=7+rand()*2;
       const pack=foundry?'industrial':'commercial',name=foundry?['building-d','building-h','building-a','building-m'][(i+Math.abs(index))%4]:['building-a','building-c','building-h','building-f'][(i+Math.abs(index))%4];
       const model=scenery(pack+'/'+name,x,z,size,side<0?Math.PI/2:-Math.PI/2,['#f1dfc6','#d4ddd2','#e5cec0','#cbd3db'][(i+Math.abs(index)+Number(side>0))%4]);
       if(model)g.add(model);else box(g,x,1.8,z,size,3.6,size*.8,foundry?'#9b8777':'#a9aca5');
@@ -436,7 +446,7 @@ export class EscapeScene {
         g.position.y=e.kind==='devourer'?Math.sin(clock*12)*.035:Math.abs(Math.sin(clock*7+e.born))*.1;
         if(e.kind!=='devourer')g.rotation.y=Math.atan2(-e.x,s.house.z-e.z)+Math.PI;else g.rotation.y=0;
         g.rotation.z=e.stunnedUntil>s.clock?Math.sin(clock*35)*.09:Math.sin(clock*6+e.born)*.015;
-        g.scale.setScalar(e.kind==='devourer'&&e.exposedUntil>s.clock?1.02:1);g.userData.pick={x:e.x,z:e.z};g.userData.hint={type:'enemy',label:(e.kind==='devourer'?'고철 포식자':e.kind==='rammer'?'돌진 수거기':e.kind==='snatcher'?'흡착 줍개':'고철 수거기')+' · 좌클릭 공격',color:'#ed916b'};if(g.userData.armor)g.userData.armor.visible=e.armor>0;if(g.userData.core){g.userData.core.visible=e.exposedUntil>s.clock;g.userData.core.rotation.z=clock*4;}
+        g.scale.setScalar(e.kind==='devourer'&&e.exposedUntil>s.clock?1.02:1);g.userData.pick={x:e.x,z:e.z};g.userData.hint={type:'enemy',label:(e.kind==='devourer'?'고철 포식자':e.kind==='rammer'?'돌진 수거기':e.kind==='snatcher'?'흡착 줍개':'고철 수거기')+' · 좌클릭 공격',color:'#ed916b'};if(g.userData.armor)g.userData.armor.visible=e.armor>0;if(g.userData.core){g.userData.core.visible=e.exposedUntil>s.clock;g.userData.core.rotation.z=clock*4;}if(g.userData.jaw){const open=e.exposedUntil>s.clock?1:0;g.userData.jaw.position.y+=(-open*.48-g.userData.jaw.position.y)*Math.min(1,dt*12);}
       }
       for(const[key,g]of this.monsters)if(!enemies.has(key)){this.remove(g);this.monsters.delete(key);}
       const hazards=new Set(s.hazards.map(h=>h.id));

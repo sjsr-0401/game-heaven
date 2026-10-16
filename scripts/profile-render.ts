@@ -11,14 +11,14 @@ const trials=[
  {name:'mesa1280-record',width:1280,height:800,record:true,headless:false,args:['--use-gl=angle','--use-angle=gl']}
 ];
 await mkdir('artifacts/profile',{recursive:true});
-const results:unknown[]=[];
+const results:Record<string,unknown>[]=[];
 for(const trial of trials){
  let browser:Awaited<ReturnType<typeof chromium.launch>>|null=null;
  try{
   browser=await chromium.launch({headless:trial.headless,args:[...common,...trial.args],env:{...process.env,...(trial.name.startsWith('mesa')?{LIBGL_ALWAYS_SOFTWARE:'1'}:{})}});
   const context=await browser.newContext({viewport:{width:trial.width,height:trial.height},...(trial.record?{recordVideo:{dir:'artifacts/profile-raw',size:{width:trial.width,height:trial.height}}}:{})});
   const main=await context.newPage(),friendContext=await browser.newContext({viewport:{width:800,height:600}}),friend=await friendContext.newPage();
-  for(const [page,ctx] of [[main,context],[friend,friendContext]] as const){const focus=await ctx.newCDPSession(page);await focus.send('Emulation.setFocusEmulationEnabled',{enabled:true});await page.goto(base+'/?review=1&graphics=economy'+(page===friend?'&review-helper=1':''),{waitUntil:'domcontentloaded',timeout:20000});await page.locator('#connection.online').waitFor({timeout:15000});await page.locator('#nickname').fill(page===main?'계측 A':'계측 B');}
+  for(const [page,ctx] of [[main,context],[friend,friendContext]] as const){const focus=await ctx.newCDPSession(page);await focus.send('Emulation.setFocusEmulationEnabled',{enabled:true});await page.goto(base+'/?review=1&graphics=economy'+(page===friend?'&review-helper=1':''),{waitUntil:'domcontentloaded',timeout:20000});await page.locator('#connection.online').waitFor({state:'attached',timeout:15000});await page.locator('#nickname').fill(page===main?'계측 A':'계측 B');}
   await main.locator('#create-room').click();await main.locator('#lobby-copy').waitFor();
   const code=await main.evaluate(()=>window.__review!.snapshot().room!.code);
   await friend.locator('#join-code').fill(code);await friend.locator('#join-room').click();await friend.locator('#ready-start').click();
@@ -39,3 +39,5 @@ for(const trial of trials){
  finally{await browser?.close();}
 }
 await writeFile('artifacts/profile/render-profile.json',JSON.stringify({sourceCommit:process.env.GITHUB_SHA,results},null,2));
+
+if(!results.some(r=>r.status==='ok'))throw Error('No renderer trial completed; do not treat an empty profile as a pass');

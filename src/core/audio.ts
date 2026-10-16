@@ -125,7 +125,7 @@ export function advanceEscapeAudio(s:EscapeState):void {
  for(const p of s.crew){
   const stride=Math.floor(p.walk/1.55),before=steps.get(p.id);steps.set(p.id,stride);
   if(before!==undefined&&before!==stride&&p.downUntil<=s.clock&&!p.left){
-   const deck=onDeck(p,s.house),pan=((p.x-listener.x)*.836+(p.z-listener.z)*.548)/15,volume=.085/(1+Math.hypot(p.x-listener.x,p.z-listener.z)*.13);
+   const deck=onDeck(p,s.house)||(s.biome==='canal'&&Math.abs(p.x)>9.6),pan=((p.x-listener.x)*.836+(p.z-listener.z)*.548)/15,volume=.085/(1+Math.hypot(p.x-listener.x,p.z-listener.z)*.13);
    sample(deck?(stride%2?'wood0':'wood1'):(stride%2?'concrete0':'concrete1'),volume,.96+(stride%3)*.04,pan);
   }
  }
