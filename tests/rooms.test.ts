@@ -16,7 +16,7 @@ class FakePeer implements Peer {
 function setup() {
   let now = 1000; const hub = new RoomHub(new Map([[starwoodMode.id, starwoodMode]]), () => now);
   const a = new FakePeer('socket-a'), b = new FakePeer('socket-b'); hub.connect(a); hub.connect(b);
-  hub.receive(a.id, { type: 'create', name: '친구 A', modeId: 'starwood' });
+  hub.receive(a.id, { type: 'create', name: '친구 A', modeId: 'nightwatch' });
   const joined = a.last('joined');
   return { hub, a, b, joined, advance: (ms: number) => { now += ms; } };
 }
@@ -62,7 +62,7 @@ test('invalid rooms and malformed reconnect tokens fail without crashing the hub
   hub.receive(b.id, { type: 'create', name: 'B', modeId: 'removed-mode' }); assert.ok(b.last('error'));
 });
 test('room isolation prevents commands and state from leaking to other rooms', () => {
-  const { hub, a, b } = setup(); hub.receive(b.id, { type: 'create', name: 'B', modeId: 'starwood' });
+  const { hub, a, b } = setup(); hub.receive(b.id, { type: 'create', name: 'B', modeId: 'nightwatch' });
   const before = b.messages.length;
   hub.receive(a.id, { type: 'start' }); hub.receive(a.id, { type: 'command', requestId: 1, action: { kind: 'summon' } });
   assert.equal(b.messages.length, before); assert.notEqual(a.state().code, b.state().code);

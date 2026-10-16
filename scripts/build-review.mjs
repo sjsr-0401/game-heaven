@@ -5,7 +5,7 @@ import { resolve } from 'node:path';
 import assert from 'node:assert/strict';
 
 const metadata = JSON.parse(await readFile('artifacts/verification.json', 'utf8'));
-const mp4 = await readFile('artifacts/starwood-preview.mp4');
+const mp4 = await readFile('artifacts/nightwatch-preview.mp4');
 const poster = await readFile('artifacts/poster.png');
 const escape = value => String(value).replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;');
 const template = await readFile('scripts/review-template.html', 'utf8');

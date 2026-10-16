@@ -2,124 +2,156 @@ import { FAMILIES_INFO, RARITIES, createRandom, type Family } from '../../../sha
 
 export function star(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string): void {
   ctx.fillStyle = color; ctx.beginPath();
-  for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4; const size = i % 2 ? r * 0.3 : r; ctx.lineTo(x + Math.cos(a) * size, y + Math.sin(a) * size); }
+  for (let i = 0; i < 8; i++) { const a = -Math.PI / 2 + i * Math.PI / 4; const size = i % 2 ? r * 0.25 : r; ctx.lineTo(x + Math.cos(a) * size, y + Math.sin(a) * size); }
   ctx.closePath(); ctx.fill();
 }
-export function drawGuardian(ctx: CanvasRenderingContext2D, x: number, y: number, family: Family, rank: number, scale = 2.5, time = 0): void {
-  ctx.save(); ctx.translate(Math.round(x), Math.round(y - Math.sin(time * 2.5 + x) * 1.8)); ctx.scale(scale, scale);
-  const c = FAMILIES_INFO[family].color;
-  ctx.fillStyle = '#102c2c'; ctx.fillRect(-7, -12, 13, 13); ctx.fillRect(-5, -15, 9, 3);
-  ctx.fillStyle = '#254845'; ctx.fillRect(-5, 0, 10, 5); ctx.fillRect(-6, 5, 4, 3); ctx.fillRect(2, 5, 4, 3);
-  ctx.fillStyle = c; ctx.fillRect(-5, -11, 9, 10); ctx.fillRect(-3, -14, 5, 3);
-  ctx.fillStyle = '#ffe2b8'; ctx.fillRect(-3, -8, 6, 6);
-  ctx.fillStyle = '#253d38'; ctx.fillRect(-2, -6, 1, 2); ctx.fillRect(2, -6, 1, 2);
-  ctx.fillStyle = '#b27562'; ctx.fillRect(0, -3, 2, 1);
-  ctx.fillStyle = c; ctx.fillRect(-6, 0, 12, 4);
-  ctx.fillStyle = '#ffffff55'; ctx.fillRect(-4, -11, 2, 3); ctx.fillRect(-4, 0, 2, 3);
-  ctx.fillStyle = '#1c4542'; ctx.fillRect(-1, 0, 2, 5);
-  ctx.fillStyle = '#d9b782'; ctx.fillRect(8, -8, 2, 15);
+
+// Original human pixel figures. Coordinates are whole pixels; every pose shares the same skeleton.
+export function drawGuardian(ctx: CanvasRenderingContext2D, x: number, y: number, family: Family, rank: number, scale = 2, time = 0, attack = 0, facing = 1): void {
+  ctx.save(); ctx.imageSmoothingEnabled = false;
+  ctx.translate(Math.round(x), Math.round(y)); ctx.scale(scale * facing, scale);
+  const pixel = (color: string, a: number, b: number, w: number, h: number) => { ctx.fillStyle = color; ctx.fillRect(Math.round(a), Math.round(b), w, h); };
+  const info = FAMILIES_INFO[family], accent = rank >= 2 ? RARITIES[rank].color : info.color;
+  const dark = '#111725', skin = family === 'volt' ? '#b98568' : '#edbc92', skinLight = family === 'volt' ? '#e4b08c' : '#ffe0b1';
+  const hair = { ranger: '#70503d', ember: '#bc6250', frost: '#b9c8d6', volt: '#202b43' }[family];
+  const coat = { ranger: '#736454', ember: '#a7473d', frost: '#557a9a', volt: '#625084' }[family];
+  const light = { ranger: '#ac9370', ember: '#db7960', frost: '#9cbdc9', volt: '#9983b7' }[family];
+  const breathe = Math.floor(Math.sin(time * 3 + x) * 0.65);
+  // Cloak silhouette, separate boots, knees and belt keep the figure recognisably human.
+  pixel(dark, -8, -22 + breathe, 15, 19);
+  pixel(coat, -9, -20 + breathe, 5, 17); pixel(coat, 4, -20 + breathe, 5, 17);
+  pixel(light, -9, -19 + breathe, 2, 10); pixel('#292536', -7, -6, 15, 3);
+  pixel(dark, -6, -7, 6, 9); pixel(dark, 2, -7, 6, 9);
+  pixel('#3d4558', -5, -7, 4, 6); pixel('#596071', 3, -7, 3, 5);
+  pixel('#1a1e2b', -7, 0, 7, 4); pixel('#1a1e2b', 2, 0, 8, 4);
+  pixel('#8e795c', -6, 0, 5, 1); pixel('#8e795c', 3, 0, 5, 1);
+  pixel(coat, -6, -23 + breathe, 13, 15); pixel(light, -4, -22 + breathe, 4, 10);
+  pixel('#e4c28d', -5, -10, 12, 2); pixel('#483b3c', -1, -11, 3, 4);
+  // Neck, jaw, ears, nose, eyes, highlights and individual hair clumps.
+  pixel(dark, -6, -34 + breathe, 13, 13); pixel(hair, -5, -35 + breathe, 11, 6);
+  pixel(skin, -4, -29 + breathe, 10, 7); pixel(skinLight, 0, -29 + breathe, 6, 5);
+  pixel(skin, -6, -28 + breathe, 2, 4); pixel('#ad765e', -4, -23 + breathe, 8, 2);
+  pixel('#111c2d', -1, -28 + breathe, 2, 2); pixel('#111c2d', 4, -28 + breathe, 2, 2);
+  pixel('#fff0d0', 0, -28 + breathe, 1, 1); pixel(skinLight, 5, -26 + breathe, 3, 2);
+  pixel('#9b6553', 3, -23 + breathe, 3, 1); pixel(skin, -1, -22 + breathe, 5, 3);
+  pixel(hair, -6, -33 + breathe, 3, 7); pixel(hair, -3, -35 + breathe, 8, 5);
+  pixel(family === 'frost' ? '#edf0df' : '#d99e68', -3, -34 + breathe, 4, 1);
+  // Distinct headwear and armour, without hiding the human face.
   if (family === 'ranger') {
-    ctx.fillStyle = '#d9b782'; ctx.fillRect(10, -8, 2, 2); ctx.fillRect(12, -6, 2, 9); ctx.fillRect(10, 3, 2, 2);
-    ctx.fillStyle = '#dcf1c4'; ctx.fillRect(9, -6, 1, 10); ctx.fillRect(6, -2, 9, 1);
-    ctx.fillStyle = '#e9efbb'; ctx.fillRect(-3, -17, 2, 6); ctx.fillRect(-1, -18, 4, 3);
+    pixel('#3e3840', -8, -32 + breathe, 16, 2); pixel('#7c6651', -5, -37 + breathe, 11, 5);
+    pixel('#c5aa78', -5, -33 + breathe, 11, 1); pixel(accent, -7, -23, 5, 4);
+    pixel('#2f3541', 3, -20, 5, 9); pixel('#d9c794', 4, -19, 3, 1);
   } else if (family === 'ember') {
-    ctx.fillStyle = '#b96d68'; ctx.fillRect(-7, -13, 14, 3); ctx.fillRect(-5, -17, 9, 4); ctx.fillRect(-3, -21, 5, 4);
-    ctx.fillStyle = '#ffe5a2'; ctx.fillRect(6, -15, 6, 6); ctx.fillRect(8, -18, 3, 6);
-    ctx.fillStyle = '#ffad79'; ctx.fillRect(8, -14, 3, 4);
+    pixel('#57373d', -6, -32 + breathe, 13, 3); pixel('#d2ad7a', -5, -31 + breathe, 4, 2);
+    pixel('#c5d6bf', -4, -31 + breathe, 2, 1); pixel('#d2ad7a', 2, -31 + breathe, 4, 2);
+    pixel('#784331', -7, -20, 3, 10); pixel('#ffa86c', -7, -17, 3, 4);
+    pixel('#9bdcd6', -8, -16, 3, 3); pixel('#e3d5ab', -8, -17, 3, 1);
   } else if (family === 'frost') {
-    ctx.fillStyle = '#e0f8fa'; ctx.fillRect(-6, -13, 3, 5); ctx.fillRect(2, -13, 3, 5);
-    ctx.fillStyle = '#bce8f2'; ctx.fillRect(6, -16, 7, 7); ctx.fillRect(8, -19, 3, 13); ctx.fillRect(3, -13, 13, 2);
+    pixel('#cbd6d4', -8, -23, 6, 5); pixel('#7394a3', -8, -18, 5, 2);
+    pixel('#d9e5df', 4, -23, 6, 5); pixel('#30455f', -2, -21, 7, 10);
+    pixel(accent, 0, -21, 2, 8); pixel('#d3e3db', -7, -12, 3, 5);
+    pixel(hair, -6, -32, 3, 13);
   } else {
-    ctx.fillStyle = '#9d8ad1'; ctx.fillRect(-7, -13, 14, 3); ctx.fillRect(-4, -18, 8, 5); ctx.fillRect(0, -22, 4, 5);
-    star(ctx, 9, -14, 5, '#f6e3ab');
+    pixel('#322a4c', -7, -37 + breathe, 14, 7); pixel('#aa8bc3', -8, -32 + breathe, 16, 2);
+    pixel(accent, -2, -37 + breathe, 4, 3); pixel('#d2bb86', -4, -21, 9, 2);
+    pixel('#382e55', -1, -18, 5, 10); pixel(accent, 0, -17, 2, 3);
+  }
+  // Forearm follows a compact attack/recoil pose.
+  const recoil = attack > 0 ? -Math.round(Math.sin(attack * Math.PI) * 3) : 0;
+  pixel(dark, 5 + recoil, -21, 6, 8); pixel(coat, 5 + recoil, -20, 5, 6);
+  pixel(skin, 7 + recoil, -16, 5, 3); pixel(skinLight, 8 + recoil, -16, 3, 1);
+  if (family === 'ranger') {
+    pixel('#19202c', 7 + recoil, -19, 19, 5); pixel('#7f8589', 11 + recoil, -19, 15, 2);
+    pixel('#c6beb1', 19 + recoil, -19, 7, 1); pixel('#a57b51', 7 + recoil, -17, 8, 3);
+    pixel('#212436', 15 + recoil, -22, 5, 3); pixel('#d2b476', 15 + recoil, -22, 4, 1);
+    if (attack > 0.5) star(ctx, 29 + recoil, -18, 8 * attack, '#ffe2a4');
+  } else if (family === 'ember') {
+    pixel('#242638', 10 + recoil, -17, 12, 7); pixel('#af7c55', 12 + recoil, -16, 11, 4);
+    pixel('#e1b788', 15 + recoil, -17, 6, 2); pixel('#492e35', 22 + recoil, -15, 3, 3);
+    pixel('#b3c7bb', 13 + recoil, -23, 6, 6); pixel('#ed8a52', 14 + recoil, -21, 4, 4);
+  } else if (family === 'frost') {
+    ctx.save(); ctx.translate(10, -15); ctx.rotate(-0.8 + attack * 1.8);
+    pixel('#e3c28a', -2, -3, 4, 11); pixel('#4a5770', -6, -4, 12, 3);
+    pixel('#9ec8df', -2, -25, 4, 21); pixel('#ebf6ea', -1, -26, 2, 21); pixel('#537d9c', 2, -22, 1, 16); ctx.restore();
+  } else {
+    pixel('#2c263e', 12, -29, 4, 32); pixel('#b39463', 13, -27, 2, 28);
+    pixel('#e7d6a9', 10, -30, 8, 3); star(ctx, 14, -32, 6 + Math.sin(time * 5), accent);
   }
   if (rank > 0) {
-    ctx.fillStyle = RARITIES[rank].color;
-    for (let i = 0; i < rank; i++) star(ctx, (i - (rank - 1) / 2) * 5, 13, 2.4, RARITIES[rank].color);
-    if (rank >= 2) { ctx.fillRect(-6, -23, 2, 4); ctx.fillRect(4, -23, 2, 4); ctx.fillRect(-4, -20, 8, 2); }
+    pixel(accent, -9, -21, 2, 4); pixel(accent, 7, -21, 2, 4);
+    for (let i = 0; i < rank; i++) pixel(accent, -rank * 2 + i * 4, 7, 3, 2);
   }
   ctx.restore();
 }
-
-export function portrait(family: Family, rank = 0, size = 72): string {
+export function portrait(family: Family, rank = 0, size = 88): string {
   const canvas = document.createElement('canvas'); canvas.width = size; canvas.height = size;
-  drawGuardian(canvas.getContext('2d')!, size / 2 - 3, size * 0.69, family, rank, size / 31);
+  drawGuardian(canvas.getContext('2d')!, size * 0.39, size * 0.85, family, rank, size / 47);
   return canvas.toDataURL();
-}
-
-export function tree(ctx: CanvasRenderingContext2D, x: number, y: number, scale: number, hue: number): void {
-  ctx.save(); ctx.translate(Math.round(x), Math.round(y)); ctx.scale(scale, scale);
-  ctx.fillStyle = '#061f24aa'; ctx.beginPath(); ctx.ellipse(3, 6, 23, 9, 0, 0, Math.PI * 2); ctx.fill();
-  ctx.fillStyle = '#654d3b'; ctx.fillRect(-4, -13, 9, 19); ctx.fillStyle = '#92704b'; ctx.fillRect(0, -10, 3, 15);
-  const tones = hue > 0.5 ? ['#173e38', '#245341', '#336b4b', '#527f52'] : ['#153c39', '#235344', '#32694d', '#487b52'];
-  const polygon = (w: number, top: number, bottom: number, color: string) => {
-    ctx.fillStyle = color; ctx.beginPath(); ctx.moveTo(-w, bottom); ctx.lineTo(-w, bottom - 6); ctx.lineTo(-w / 2, top + 10); ctx.lineTo(-6, top + 10); ctx.lineTo(-6, top); ctx.lineTo(4, top); ctx.lineTo(w / 2, top + 15); ctx.lineTo(w, bottom - 6); ctx.lineTo(w, bottom); ctx.closePath(); ctx.fill();
-  };
-  polygon(30, -48, -10, tones[0]); polygon(26, -58, -23, tones[1]); polygon(21, -69, -37, tones[2]); polygon(13, -74, -51, tones[3]);
-  ctx.fillStyle = '#84aa6255'; ctx.fillRect(-9, -64, 6, 4); ctx.fillRect(-16, -45, 8, 4); ctx.fillRect(-21, -29, 8, 4);
-  ctx.restore();
 }
 
 export function mapArt(): HTMLCanvasElement {
   const canvas = document.createElement('canvas'); canvas.width = 984; canvas.height = 716;
-  const ctx = canvas.getContext('2d')!; const random = createRandom(1634);
-  ctx.fillStyle = '#264f43'; ctx.fillRect(0, 0, 984, 716);
-  for (let i = 0; i < 3200; i++) {
-    ctx.fillStyle = ['#315e46', '#376447', '#284d40', '#426d4c'][Math.floor(random() * 4)];
-    ctx.fillRect(Math.floor(random() * 246) * 4, Math.floor(random() * 179) * 4, 4 + Math.floor(random() * 3) * 4, 4);
+  const ctx = canvas.getContext('2d')!, random = createRandom(2749);
+  ctx.imageSmoothingEnabled = false;
+  const rect = (c: string, x: number, y: number, w: number, h: number) => { ctx.fillStyle = c; ctx.fillRect(Math.floor(x), Math.floor(y), w, h); };
+  rect('#171d2a', 0, 0, 984, 716);
+  // Broken slate, staggered masonry and moss. The combat route is a lighter worn road.
+  for (let row = 0; row < 24; row++) for (let col = 0; col < 29; col++) {
+    const x = col * 36 + row % 2 * 18 - 18, y = row * 30;
+    rect(['#252c39','#29303d','#232a36','#303643'][Math.floor(random()*4)], x + 1, y + 1, 34, 28);
+    rect('#3a404b', x + 2, y + 1, 31, 1); rect('#131b26', x + 2, y + 28, 32, 2);
+    for(let n=0;n<3;n++) rect('#45505a44',x+random()*30,y+random()*24,3+Math.floor(random()*3),1);
   }
-  // A shallow creek at the bottom of the clearing.
-  ctx.fillStyle = '#1d4143'; ctx.fillRect(0, 650, 984, 66);
-  for (let i = 0; i < 120; i++) { ctx.fillStyle = i % 3 ? '#2d5b58' : '#47766a'; ctx.fillRect(random() * 984, 653 + random() * 63, 5 + random() * 22, 2); }
-  ctx.strokeStyle = '#183c35'; ctx.lineWidth = 68; ctx.strokeRect(131, 124, 722, 480);
-  ctx.strokeStyle = '#527151'; ctx.lineWidth = 58; ctx.strokeRect(131, 124, 722, 480);
-  ctx.strokeStyle = '#9b956a'; ctx.lineWidth = 44; ctx.strokeRect(131, 124, 722, 480);
-  ctx.strokeStyle = '#b0a87b'; ctx.lineWidth = 34; ctx.strokeRect(131, 124, 722, 480);
-  for (let i = 0; i < 380; i++) {
-    const p = random() * 2404; const jitter = random() * 30 - 15;
-    let x: number, y: number;
-    if (p < 722) { x = 131 + p; y = 124 + jitter; }
-    else if (p < 1202) { x = 853 + jitter; y = 124 + p - 722; }
-    else if (p < 1924) { x = 853 - p + 1202; y = 604 + jitter; }
-    else { x = 131 + jitter; y = 604 - p + 1924; }
-    ctx.fillStyle = i % 3 ? '#c5bb8d' : '#8d8c62'; ctx.fillRect(Math.floor(x / 3) * 3, Math.floor(y / 3) * 3, 3 + Math.floor(random() * 2) * 3, 3);
+  ctx.strokeStyle='#0c1323';ctx.lineWidth=76;ctx.strokeRect(131,124,722,480);
+  ctx.strokeStyle='#5a5460';ctx.lineWidth=64;ctx.strokeRect(131,124,722,480);
+  ctx.strokeStyle='#77717a';ctx.lineWidth=56;ctx.strokeRect(131,124,722,480);
+  ctx.strokeStyle='#565561';ctx.lineWidth=48;ctx.strokeRect(131,124,722,480);
+  for(let i=0;i<600;i++){
+    const p=random()*2404,j=random()*42-21;let x:number,y:number;
+    if(p<722){x=131+p;y=124+j;}else if(p<1202){x=853+j;y=124+p-722;}else if(p<1924){x=853-p+1202;y=604+j;}else{x=131+j;y=604-p+1924;}
+    rect(i%3?'#89818a55':'#373b4d99',Math.floor(x/3)*3,Math.floor(y/3)*3,3+Math.floor(random()*4)*3,2);
   }
-  ctx.fillStyle = '#112f29aa'; ctx.fillRect(218, 185, 548, 348);
-  ctx.fillStyle = '#4c714e'; ctx.fillRect(226, 188, 532, 340);
-  ctx.fillStyle = '#557d55'; ctx.fillRect(230, 192, 524, 330);
-  for (let row = 0; row < 5; row++) for (let col = 0; col < 8; col++) {
-    const x = 236 + col * 64, y = 204 + row * 64;
-    ctx.fillStyle = (row + col) % 2 ? '#64855a' : '#698b5c'; ctx.fillRect(x, y, 62, 62);
-    ctx.fillStyle = '#89a26935'; ctx.fillRect(x, y, 62, 2); ctx.fillRect(x, y, 2, 62);
-    ctx.fillStyle = '#466b493a'; ctx.fillRect(x + 60, y, 2, 62); ctx.fillRect(x, y + 60, 62, 2);
-    for (let n = 0; n < 4; n++) { ctx.fillStyle = '#a0b77925'; ctx.fillRect(x + random() * 55, y + random() * 55, 3, 3); }
-    ctx.fillStyle = '#a6c48b35'; ctx.fillRect(x + 29, y + 29, 3, 3);
+  // Raised courtyard with chipped borders and sparse, subtle deployment marks.
+  rect('#111825',220,181,548,355);rect('#454653',224,182,536,346);rect('#212a39',230,190,524,336);
+  for(let r=0;r<5;r++)for(let c=0;c<8;c++){
+    const x=236+c*64,y=204+r*64;
+    rect((r+c)%2?'#2d3747':'#313b4a',x,y,62,62);rect('#435061',x,y,62,2);rect('#192332',x,y+60,62,2);
+    rect('#596273',x+29,y+28,4,4);
+    for(let n=0;n<7;n++)rect(n%3?'#64707b22':'#1d2937',x+random()*58,y+random()*57,2+Math.floor(random()*4),1);
   }
-  // Clearing ornaments: stones, flowers, mushrooms and wooden lanterns.
-  for (let i = 0; i < 190; i++) {
-    const x = random() * 984, y = random() * 716;
-    if (x > 96 && x < 890 && y > 80 && y < 640) continue;
-    ctx.fillStyle = '#1c4037'; ctx.fillRect(x, y, 9, 4);
-    ctx.fillStyle = i % 4 === 0 ? '#b1bba0' : '#638b56'; ctx.fillRect(x + 2, y - 2, 5, 4);
-    if (i % 5 === 0) { ctx.fillStyle = '#e2c995'; ctx.fillRect(x + 3, y - 6, 3, 3); }
+  // Perimeter walls have thickness, crenellations, buttresses and hanging banners.
+  for(let x=0;x<984;x+=48){
+    rect('#0c1220',x,42,46,36);rect('#3e4352',x+1,44,44,28);rect('#626170',x+2,44,42,3);
+    rect('#232a3c',x+5,57,35,2);rect('#535364',x+7,28,30,18);rect('#747080',x+7,28,30,3);
   }
-  for (let i = 0; i < 18; i++) { tree(ctx, 20 + i * 57 + random() * 20, 92 + random() * 8, 1.1 + random() * 0.25, random()); }
-  for (let i = 0; i < 8; i++) {
-    tree(ctx, 38 + random() * 12, 170 + i * 68, 1.15, random());
-    tree(ctx, 945 + random() * 15, 170 + i * 68, 1.15, random());
+  for(const x of [32,900]){
+    for(let y=166;y<630;y+=68){
+      rect('#101624',x,y,45,61);rect('#454554',x+3,y,39,54);rect('#72707a',x+4,y,37,4);
+      rect('#252e40',x+10,y+8,25,38);rect('#8c5355',x+16,y+13,13,23);rect('#c59470',x+21,y+15,3,16);
+    }
   }
-  for (const x of [184, 800]) for (const y of [181, 550]) {
-    ctx.fillStyle = '#1b3b32'; ctx.fillRect(x - 7, y - 6, 14, 16);
-    ctx.fillStyle = '#b69b6e'; ctx.fillRect(x - 4, y - 9, 8, 15);
-    ctx.fillStyle = '#ffe7a4'; ctx.fillRect(x - 3, y - 7, 6, 6);
-    const glow = ctx.createRadialGradient(x, y - 5, 0, x, y - 5, 35); glow.addColorStop(0, '#ffeaa829'); glow.addColorStop(1, '#ffeaa800'); ctx.fillStyle = glow; ctx.fillRect(x - 35, y - 40, 70, 70);
+  // Gatehouse, stained banner, broken columns and discarded supplies.
+  rect('#111625',93,75,77,80);rect('#615c67',94,73,17,80);rect('#615c67',153,73,17,80);
+  rect('#8f8790',92,71,80,10);rect('#242435',114,83,38,30);
+  for(let x=116;x<152;x+=7)rect('#98909a',x,84,3,30);
+  rect('#8b4c52',454,55,74,44);rect('#c49c71',460,55,62,3);star(ctx,491,75,12,'#d4b67f');
+  for(const [x,y] of [[190,250],[790,452],[275,660],[730,666]]){
+    rect('#0d1523',x-13,y,29,9);rect('#6f6d76',x-10,y-23,23,25);rect('#9a9191',x-12,y-26,27,5);
+    rect('#42475a',x-5,y-20,3,21);rect('#42475a',x+6,y-20,2,21);rect('#b3a197',x-10,y-25,20,2);
   }
-  // Entry gate and small direction markers keep the track legible.
-  ctx.fillStyle = '#3b4940'; ctx.fillRect(101, 87, 9, 67); ctx.fillRect(151, 87, 9, 67);
-  ctx.fillStyle = '#8b7958'; ctx.fillRect(97, 80, 67, 12); ctx.fillStyle = '#d6c28d'; ctx.fillRect(103, 81, 56, 3);
-  for (const [x, y, angle] of [[490, 124, 0], [853, 355, Math.PI / 2], [492, 604, Math.PI], [131, 360, -Math.PI / 2]]) {
-    ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.strokeStyle = '#716f4d80'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(-5, -5); ctx.lineTo(1, 0); ctx.lineTo(-5, 5); ctx.stroke(); ctx.restore();
+  for(let i=0;i<90;i++){
+    const x=random()*984,y=650+random()*55;
+    rect(i%2?'#64616c':'#41485b',x,y,4+Math.floor(random()*6),3);
   }
-  const vignette = ctx.createRadialGradient(492, 365, 220, 492, 365, 620); vignette.addColorStop(0, '#051b2000'); vignette.addColorStop(1, '#071c2c99'); ctx.fillStyle = vignette; ctx.fillRect(0, 0, 984, 716);
+  for(const x of [190,790])for(const y of [174,552]){
+    rect('#101624',x-7,y-8,14,19);rect('#777079',x-5,y-12,10,17);rect('#b89b6d',x-4,y-10,8,5);
+    rect('#ffce7e',x-3,y-17,6,9);rect('#fff0b4',x-1,y-19,2,10);
+    const glow=ctx.createRadialGradient(x,y-12,1,x,y-12,75);glow.addColorStop(0,'#ffb35e40');glow.addColorStop(1,'#ffb35e00');ctx.fillStyle=glow;ctx.fillRect(x-75,y-87,150,150);
+  }
+  for(const [x,y,a] of [[490,124,0],[853,355,Math.PI/2],[492,604,Math.PI],[131,360,-Math.PI/2]]){
+    ctx.save();ctx.translate(x,y);ctx.rotate(a);ctx.strokeStyle='#b2a29477';ctx.lineWidth=3;ctx.beginPath();ctx.moveTo(-5,-5);ctx.lineTo(1,0);ctx.lineTo(-5,5);ctx.stroke();ctx.restore();
+  }
+  const vignette=ctx.createRadialGradient(492,350,240,492,350,620);
+  vignette.addColorStop(0,'#07102500');vignette.addColorStop(1,'#040a18bb');ctx.fillStyle=vignette;ctx.fillRect(0,0,984,716);
   return canvas;
 }

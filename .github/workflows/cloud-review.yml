@@ -54,12 +54,12 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: starwood-review
+          name: nightwatch-review
           retention-days: 30
           if-no-files-found: warn
           path: |
             artifacts/review.html
-            artifacts/starwood-preview.mp4
+            artifacts/nightwatch-preview.mp4
             artifacts/poster.png
             artifacts/review-page.png
             artifacts/verification.json
