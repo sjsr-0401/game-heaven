@@ -143,7 +143,6 @@ try{
   audio=await main.evaluate(()=>window.__review!.audio());check('마이크 없이 실제 게임 효과음 출력 녹음',!!audio?.base64);
   const fourPlayerIds=(fourStates[0].room!.game as EscapeState).crew.map(p=>p.id);
   await main.reload();await main.locator('.world canvas').waitFor();check('4인 원정 재접속 유지',(await snapshot(main)).playerId===fourStates[0].playerId&&((await snapshot(main)).room!.game as EscapeState).crew.map(p=>p.id).join()===fourPlayerIds.join());
-  check('브라우저 런타임 오류 없음',errors.length===0);
   let recordingWallSeconds=(Date.now()-videoStart)/1000;
   const captureSession=nativeSession as CDPSession|null;
   if(captureSession){
@@ -151,6 +150,12 @@ try{
     const output=await open('artifacts/source.webm','w');
     try{for(;;){const chunk=await captureSession.send('IO.read',{handle,size:1024*1024});await output.write(Buffer.from(chunk.data,chunk.base64Encoded?'base64':'utf8'));if(chunk.eof)break;}}finally{await output.close();await captureSession.send('IO.close',{handle});}
   }
+  const highDisplay=await mainContext.newCDPSession(main);await highDisplay.send('Emulation.setDeviceMetricsOverride',{width:1280,height:800,deviceScaleFactor:1.5,mobile:false});
+  await main.goto(base+'/?review=1&graphics=high',{waitUntil:'domcontentloaded'});await main.waitForFunction(()=>window.__review?.metrics()?.quality==='high'&&window.__review.metrics()!.art.loaded===14,{},{timeout:60000});await main.waitForTimeout(1200);
+  check('고화질 캡처도 같은 네 명의 실제 원정을 표시',(await snapshot(main)).playerId===fourStates[0].playerId&&((await snapshot(main)).room!.game as EscapeState).crew.length===4);
+  await main.screenshot({path:'artifacts/four-player-high.png'});
+  check('브라우저 런타임 오류 없음',errors.length===0);
+  if(!nativeCapture)recordingWallSeconds=(Date.now()-videoStart)/1000;
   const video=nativeCapture?null:main.video()!;for(const context of contexts)await context.close().catch(()=>{});await browser.close();
   if(video){const raw=await video.path();await copyFile(raw,'artifacts/source.webm');}
   if(audio)await writeFile('artifacts/audio.webm',Buffer.from(audio.base64,'base64'));

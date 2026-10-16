@@ -289,6 +289,7 @@ export class EscapeScene {
   private state:EscapeState|null=null;private received=0;private input={x:0,z:0};private ownId='';private seen=0;private lastHouse=0;
   private last=performance.now();private raf=0;private disposed=false;private observer:ResizeObserver;private viewZ=0;private shake=0;private elapsed=0;
   private eventListener:(e:EscapeEvent)=>void=()=>{};private nextShadow=0;private frameCount=0;private totalFrameMs=0;
+  private nextOcclusion=0;private blockedScenery=new Set<T.Mesh>();
   private raycaster=new T.Raycaster();private plane=new T.Plane(new T.Vector3(0,1,0),-.4);private vector=new T.Vector3();
   private ash:T.InstancedMesh;private dummy=new T.Object3D();private width=1;private height=1;
   constructor(private container:HTMLElement,private showcase=false) {
@@ -506,8 +507,9 @@ export class EscapeScene {
     const own=s?.crew.find(p=>p.id===this.ownId),focusX=own?clamp(own.x*.12,-1.5,1.5):0;
     this.camera.position.set(19+focusX+jitter,25,this.viewZ-25+jitter);this.camera.lookAt(focusX,.4,this.viewZ+4);
     this.camera.updateMatrixWorld();
-    const occluders=[...this.chunks.values()].filter(chunk=>chunk.visible).flatMap(chunk=>chunk.userData.occluders as T.Mesh[]),blocked=new Set<T.Mesh>();
-    if(s&&occluders.length){
+    const occluders=[...this.chunks.values()].filter(chunk=>chunk.visible).flatMap(chunk=>chunk.userData.occluders as T.Mesh[]),blocked=this.blockedScenery;
+    if(s&&occluders.length&&now>=this.nextOcclusion){
+      this.nextOcclusion=now+100;blocked.clear();
       this.scene.updateMatrixWorld(true);
       const subjects:T.Vector3[]=[...this.crew.values()].map(rig=>rig.root.position.clone().add(new T.Vector3(0,1.5,0)));
       for(const monster of this.monsters.values())subjects.push(monster.position.clone().add(new T.Vector3(0,1.1,0)));

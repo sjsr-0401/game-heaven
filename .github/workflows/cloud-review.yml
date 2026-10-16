@@ -113,6 +113,7 @@ jobs:
             artifacts/boss.png
             artifacts/results.png
             artifacts/four-player.png
+            artifacts/four-player-high.png
             artifacts/full-playthrough.mp4
             artifacts/failure-*.png
             artifacts/failure-details.json

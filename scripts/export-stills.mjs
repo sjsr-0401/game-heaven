@@ -4,7 +4,7 @@ const token=process.env.GITHUB_TOKEN,repo=process.env.GITHUB_REPOSITORY;
 if(!token||!repo)throw Error('Publish stills only inside the authorized Actions job');
 const verification=JSON.parse(await readFile('artifacts/verification.json','utf8'));
 if(verification.sourceCommit!==process.env.GITHUB_SHA||verification.summary.phase!=='won'||!verification.reviewHtml?.playbackVerified)throw Error('Only export a verified, completed review');
-const selected=[['menu.png','menu.png'],['poster.png','play.png'],['canal.png','canal.png'],['boss.png','boss.png'],['four-player.png','four-player.png'],['action-strip.jpg','action-strip.jpg']];
+const selected=[['menu.png','menu.png'],['poster.png','play.png'],['canal.png','canal.png'],['boss.png','boss.png'],['four-player.png','four-player.png'],['four-player-high.png','four-player-high.png'],['action-strip.jpg','action-strip.jpg']];
 const entries=[];
 for(const [source,name]of selected){
  const bytes=await readFile('artifacts/'+source);
