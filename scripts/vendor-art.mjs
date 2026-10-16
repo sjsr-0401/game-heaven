@@ -3,7 +3,9 @@ import {spawnSync} from 'node:child_process';
 import {mkdir,writeFile} from 'node:fs/promises';
 const packs=[
  {folder:'industrial',url:'https://kenney.nl/media/pages/assets/city-kit-industrial/0ec35b139d-1788171848/kenney_city-kit-industrial_2.0.zip',sha256:'5b381164e5760f3830a2dbee43b972deee38b2a695d091b56e238ab2910c96d2',names:['building-a','building-d','building-h','building-i','building-m','shipping-container-a','water-tower','detail-tank','chimney-small']},
- {folder:'commercial',url:'https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip',sha256:'f8b09b081c2bb88bcc126e2dec1cb40fd0dad7e7e591b6c26aaefe96fb35276b',names:['building-a','building-c','building-f','building-h','detail-awning']}
+ {folder:'commercial',url:'https://kenney.nl/media/pages/assets/city-kit-commercial/a742d900eb-1753115042/kenney_city-kit-commercial_2.1.zip',sha256:'f8b09b081c2bb88bcc126e2dec1cb40fd0dad7e7e591b6c26aaefe96fb35276b',names:['building-a','building-c','building-f','building-h','detail-awning']},
+ {folder:'impact',url:'https://kenney.nl/media/pages/assets/impact-sounds/87b4ddecda-1677589768/kenney_impact-sounds.zip',sha256:'029d734af1582474edf3a694d1b0cebc97c1c152f2f39fa34d4c2bafc5de77f8',entries:['License.txt',...['impactMetal_light_000','impactMetal_light_001','impactMetal_medium_000','impactMetal_medium_001','impactMetal_heavy_000','impactWood_heavy_000','impactWood_heavy_001','impactPunch_heavy_000','impactPlank_medium_000','impactPlank_medium_001','impactGeneric_light_000','impactTin_medium_000','footstep_concrete_000','footstep_concrete_001','footstep_wood_000','footstep_wood_001'].map(n=>'Audio/'+n+'.ogg')]},
+ {folder:'interface',url:'https://kenney.nl/media/pages/assets/interface-sounds/fa43c1dd4d-1677589452/kenney_interface-sounds.zip',sha256:'f2193d072726d6758a5f7871b2dcc54dcce0d5c35c6f0a62f92549b327c81232',entries:['License.txt','Audio/click_003.ogg','Audio/select_001.ogg','Audio/confirmation_001.ogg','Audio/close_001.ogg']}
 ];
 const token=process.env.GITHUB_TOKEN,repo=process.env.GITHUB_REPOSITORY;
 if(!token||!repo)throw Error('Run this vendor step in GitHub Actions');
@@ -15,7 +17,7 @@ async function blob(path,bytes,source){
 }
 for(const pack of packs){
  const archive=await get(pack.url);if(createHash('sha256').update(archive).digest('hex')!==pack.sha256)throw Error('Source archive digest changed');
- const names=['License.txt','Models/GLB format/Textures/colormap.png',...pack.names.map(n=>'Models/GLB format/'+n+'.glb')];
+ const names=pack.entries??['License.txt','Models/GLB format/Textures/colormap.png',...pack.names.map(n=>'Models/GLB format/'+n+'.glb')];
  const python='import sys,zipfile,io,json,base64\nz=zipfile.ZipFile(io.BytesIO(sys.stdin.buffer.read()))\nnames=json.loads(sys.argv[1])\nprint(json.dumps([{\"name\":n,\"data\":base64.b64encode(z.read(n)).decode()} for n in names]))';
  const extracted=spawnSync('python3',['-c',python,JSON.stringify(names)],{input:archive,maxBuffer:16*1024*1024,encoding:'utf8'});if(extracted.status!==0)throw Error(extracted.stderr);
  for(const file of JSON.parse(extracted.stdout)){const path='public/art/kenney-'+pack.folder+'/'+file.name.replace('Models/GLB format/','');await blob(path,Buffer.from(file.data,'base64'),pack.url);}
